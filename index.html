@@ -926,6 +926,20 @@
         // Initialize mobile detection
         isMobile = detectMobile();
 
+        // Mobile zoom settings
+        const mobileZoomFactor = 0.7;
+
+        // Function to apply mobile zoom
+        function applyMobileZoom() {
+            if (isMobile) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                ctx.translate(centerX, centerY);
+                ctx.scale(mobileZoomFactor, mobileZoomFactor);
+                ctx.translate(-centerX, -centerY);
+            }
+        }
+
         // Update instructions for mobile users
         if (isMobile) {
             const movementInstructions = document.getElementById('movement-instructions');
@@ -1670,7 +1684,6 @@
                 screenShake.y = (Math.random() - 0.5) * shakeAmount * 2;
 
                 // Apply shake by translating canvas context
-                ctx.save();
                 ctx.translate(screenShake.x, screenShake.y);
             } else {
                 screenShake.intensity = 0;
@@ -1681,7 +1694,9 @@
 
         function endScreenShake() {
             if (screenShake.duration > 0) {
-                ctx.restore(); // Restore the canvas translation
+                // Reset transform and reapply zoom
+                ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to identity matrix
+                applyMobileZoom(); // Reapply mobile zoom
             }
         }
 
@@ -2569,17 +2584,8 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Save context and apply mobile zoom-out
-            ctx.save();
-            if (isMobile) {
-                const zoomFactor = 0.7; // Zoom out to 70% to show more area
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-
-                ctx.translate(centerX, centerY);
-                ctx.scale(zoomFactor, zoomFactor);
-                ctx.translate(-centerX, -centerY);
-            }
+            // Apply initial mobile zoom
+            applyMobileZoom();
 
             // Apply screen shake
             updateScreenShake();
@@ -2650,6 +2656,7 @@
                     ctx.globalAlpha = 0.5;
                     drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
                     ctx.restore();
+                    applyMobileZoom(); // Reapply zoom after restore
                 } else {
                     drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
                 }
@@ -2669,9 +2676,6 @@
 
             // End screen shake (restore canvas if shaking)
             endScreenShake();
-
-            // Restore context if mobile zoom was applied
-            ctx.restore();
 
             animationId = requestAnimationFrame(gameLoop);
         }
