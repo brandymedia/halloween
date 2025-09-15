@@ -105,33 +105,48 @@
             #mobile-weapon-selector {
                 display: flex !important;
                 position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0, 0, 0, 0.7);
-                border-radius: 25px;
-                padding: 10px;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 20px;
+                padding: 5px;
                 z-index: 100;
-                gap: 10px;
+                gap: 5px;
+                transition: opacity 0.3s ease, transform 0.3s ease;
+                opacity: 0.6;
+                transform: scale(0.8);
+            }
+
+            #mobile-weapon-selector.show {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            #mobile-weapon-selector.hide {
+                opacity: 0.2;
+                transform: scale(0.6);
+                pointer-events: none;
             }
 
             .weapon-btn {
-                width: 50px !important;
-                height: 50px !important;
+                width: 35px !important;
+                height: 35px !important;
                 border-radius: 50% !important;
-                border: 2px solid #fff !important;
+                border: 1px solid rgba(255, 255, 255, 0.5) !important;
                 background: rgba(255, 255, 255, 0.1) !important;
                 color: #fff !important;
-                font-size: 0.6rem !important;
+                font-size: 0.5rem !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 font-family: 'Press Start 2P', cursive !important;
+                transition: all 0.2s ease !important;
             }
 
             .weapon-btn.active {
-                background: rgba(255, 255, 255, 0.3) !important;
+                background: rgba(255, 255, 255, 0.4) !important;
                 border-color: #ffff00 !important;
+                transform: scale(1.1) !important;
             }
         }
 
@@ -1073,11 +1088,37 @@
         }
 
         // Mobile weapon selector functionality
+        let weaponSelectorTimeout;
+        const weaponSelector = document.getElementById('mobile-weapon-selector');
+
+        function showWeaponSelector() {
+            if (!weaponSelector) return;
+            weaponSelector.classList.remove('hide');
+            weaponSelector.classList.add('show');
+
+            // Clear existing timeout
+            clearTimeout(weaponSelectorTimeout);
+
+            // Hide after 3 seconds of inactivity
+            weaponSelectorTimeout = setTimeout(() => {
+                hideWeaponSelector();
+            }, 3000);
+        }
+
+        function hideWeaponSelector() {
+            if (!weaponSelector) return;
+            weaponSelector.classList.remove('show');
+            weaponSelector.classList.add('hide');
+        }
+
         function updateWeaponButtons() {
             const buttons = document.querySelectorAll('.weapon-btn');
             buttons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.weapon === currentWeapon);
             });
+
+            // Show selector when weapon changes
+            showWeaponSelector();
         }
 
         // Add click handlers for weapon buttons
@@ -1090,8 +1131,24 @@
                 updateAmmoDisplay();
                 updateWeaponButtons();
                 audioManager.playSound('buttonClick');
+                showWeaponSelector(); // Keep it visible longer after manual selection
             });
         });
+
+        // Show weapon selector on any touch interaction during gameplay
+        if (isMobile) {
+            canvas.addEventListener('touchstart', () => {
+                if (!isGameOver) {
+                    showWeaponSelector();
+                }
+            });
+
+            // Also show on screen touch near the weapon selector area
+            weaponSelector?.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                showWeaponSelector();
+            });
+        }
 
         // Define the walls of the maze
         let walls = [];
