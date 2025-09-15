@@ -321,6 +321,21 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // Mobile detection and zoom settings
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const mobileZoomFactor = 0.7;
+
+        // Function to apply mobile zoom (must be after canvas/ctx definition)
+        function applyMobileZoom() {
+            if (isMobile) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                ctx.translate(centerX, centerY);
+                ctx.scale(mobileZoomFactor, mobileZoomFactor);
+                ctx.translate(-centerX, -centerY);
+            }
+        }
+
         const scoreDisplay = document.getElementById('score-display');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
         const weaponDisplay = document.getElementById('weapon-display');
@@ -426,7 +441,6 @@
         };
 
         // Mobile accelerometer variables
-        let isMobile = false;
         let accelerometerData = { x: 0, y: 0, z: 0 };
         let motionPermissionGranted = false;
 
@@ -880,9 +894,6 @@
         const audioManager = new AudioManager();
 
         // Mobile detection and accelerometer setup
-        function detectMobile() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
 
         async function requestMotionPermission() {
             // Lock screen orientation to portrait
@@ -923,22 +934,7 @@
             });
         }
 
-        // Initialize mobile detection
-        isMobile = detectMobile();
-
-        // Mobile zoom settings
-        const mobileZoomFactor = 0.7;
-
-        // Function to apply mobile zoom
-        function applyMobileZoom() {
-            if (isMobile) {
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                ctx.translate(centerX, centerY);
-                ctx.scale(mobileZoomFactor, mobileZoomFactor);
-                ctx.translate(-centerX, -centerY);
-            }
-        }
+        // Mobile detection already done above
 
         // Update instructions for mobile users
         if (isMobile) {
