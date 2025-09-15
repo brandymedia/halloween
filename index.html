@@ -976,7 +976,7 @@
         // Define the walls of the maze
         let walls = [];
         let doors = [];
-        const baseSize = 250;
+        const baseSize = 125; // Reduced by 50% to match wall size
         const doorSize = 70;
         const wallThickness = 20;
         
@@ -988,7 +988,7 @@
             
             const centerX = w / 2;
             const centerY = h / 2;
-            const size = 250;
+            const size = 125; // Reduced by 50% from 250 to 125
             const wallHalfSize = size / 2;
             const doorOffset = 40;
             const topDoorX = centerX - doorSize / 2;
