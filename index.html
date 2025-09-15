@@ -325,14 +325,36 @@
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const mobileZoomFactor = 0.7;
 
-        // Function to apply mobile zoom (must be after canvas/ctx definition)
+        // Function to apply mobile zoom - DISABLED for now to fix rendering issues
         function applyMobileZoom() {
+            // Disabled zoom transform to fix mobile rendering issues
+            // Will use alternative approach with larger game area
+        }
+
+        // Resize canvas function
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            // Mobile-specific adjustments
             if (isMobile) {
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                ctx.translate(centerX, centerY);
-                ctx.scale(mobileZoomFactor, mobileZoomFactor);
-                ctx.translate(-centerX, -centerY);
+                // Make the canvas resolution higher for more viewing area
+                canvas.width = Math.max(canvas.width, window.innerWidth);
+                canvas.height = Math.max(canvas.height, window.innerHeight);
+            }
+
+            // Set up canvas context
+            ctx.fillStyle = '#fff';
+            ctx.font = 'clamp(0.7rem, 2vw, 1.2rem) "Press Start 2P"';
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'top';
+
+            // Initialize game elements
+            if (typeof createWalls === 'function') createWalls();
+            if (typeof player !== 'undefined') {
+                player.x = canvas.width / 2;
+                player.y = canvas.height / 2;
             }
         }
 
@@ -1680,6 +1702,7 @@
                 screenShake.y = (Math.random() - 0.5) * shakeAmount * 2;
 
                 // Apply shake by translating canvas context
+                ctx.save();
                 ctx.translate(screenShake.x, screenShake.y);
             } else {
                 screenShake.intensity = 0;
@@ -1690,9 +1713,7 @@
 
         function endScreenShake() {
             if (screenShake.duration > 0) {
-                // Reset transform and reapply zoom
-                ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to identity matrix
-                applyMobileZoom(); // Reapply mobile zoom
+                ctx.restore(); // Restore the canvas translation
             }
         }
 
@@ -2580,9 +2601,6 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Apply initial mobile zoom
-            applyMobileZoom();
-
             // Apply screen shake
             updateScreenShake();
 
@@ -2652,7 +2670,6 @@
                     ctx.globalAlpha = 0.5;
                     drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
                     ctx.restore();
-                    applyMobileZoom(); // Reapply zoom after restore
                 } else {
                     drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
                 }
