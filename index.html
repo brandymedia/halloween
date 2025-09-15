@@ -53,6 +53,48 @@
             aspect-ratio: 4/3;
         }
 
+        /* Mobile full-screen styles */
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                height: 100dvh; /* Use dynamic viewport height */
+            }
+
+            #game-container {
+                width: 100vw;
+                height: 100vh;
+                height: 100dvh;
+                max-width: none;
+                max-height: none;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            /* Scale up UI elements for better visibility */
+            #score-display, #highScoreDisplay, #weapon-display, #ammo-display, #health-display {
+                font-size: clamp(0.6rem, 3vw, 1rem) !important;
+            }
+
+            h1 {
+                font-size: clamp(1.2rem, 6vw, 3rem) !important;
+            }
+
+            p {
+                font-size: clamp(0.5rem, 2.5vw, 0.8rem) !important;
+            }
+
+            #start-menu, #game-over-screen {
+                padding: 15px !important;
+            }
+
+            .character-option {
+                margin: 5px !important;
+            }
+        }
+
         canvas {
             display: block;
             width: 100%;
@@ -2527,6 +2569,18 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Save context and apply mobile zoom-out
+            ctx.save();
+            if (isMobile) {
+                const zoomFactor = 0.7; // Zoom out to 70% to show more area
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+
+                ctx.translate(centerX, centerY);
+                ctx.scale(zoomFactor, zoomFactor);
+                ctx.translate(-centerX, -centerY);
+            }
+
             // Apply screen shake
             updateScreenShake();
 
@@ -2615,6 +2669,9 @@
 
             // End screen shake (restore canvas if shaking)
             endScreenShake();
+
+            // Restore context if mobile zoom was applied
+            ctx.restore();
 
             animationId = requestAnimationFrame(gameLoop);
         }
