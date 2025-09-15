@@ -19,6 +19,13 @@
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
         }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(0px); }
+            80% { opacity: 1; transform: translateX(-50%) translateY(0px); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
         
         body {
             display: flex;
@@ -93,6 +100,44 @@
             .character-option {
                 margin: 5px !important;
             }
+
+            /* Mobile weapon selector */
+            #mobile-weapon-selector {
+                display: flex !important;
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                border-radius: 25px;
+                padding: 10px;
+                z-index: 100;
+                gap: 10px;
+            }
+
+            .weapon-btn {
+                width: 50px !important;
+                height: 50px !important;
+                border-radius: 50% !important;
+                border: 2px solid #fff !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                color: #fff !important;
+                font-size: 0.6rem !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-family: 'Press Start 2P', cursive !important;
+            }
+
+            .weapon-btn.active {
+                background: rgba(255, 255, 255, 0.3) !important;
+                border-color: #ffff00 !important;
+            }
+        }
+
+        /* Hide mobile weapon selector on desktop */
+        #mobile-weapon-selector {
+            display: none;
         }
 
         canvas {
@@ -315,6 +360,15 @@
                 <button id="restartButton" class="btn">Play Again</button>
             </div>
         </div>
+
+        <!-- Mobile weapon selector -->
+        <div id="mobile-weapon-selector">
+            <button class="weapon-btn" data-weapon="pistol">P</button>
+            <button class="weapon-btn" data-weapon="shotgun">S</button>
+            <button class="weapon-btn" data-weapon="fragGrenade">G</button>
+            <button class="weapon-btn" data-weapon="nuke">N</button>
+            <button class="weapon-btn" data-weapon="missile">M</button>
+        </div>
     </div>
 
     <script>
@@ -329,6 +383,44 @@
         function applyMobileZoom() {
             // Disabled zoom transform to fix mobile rendering issues
             // Will use alternative approach with larger game area
+        }
+
+        // Show weapon change notification for mobile
+        function showWeaponChangeNotification() {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: #fff;
+                padding: 10px 20px;
+                border-radius: 25px;
+                font-family: 'Press Start 2P', cursive;
+                font-size: 0.8rem;
+                z-index: 1000;
+                pointer-events: none;
+                animation: fadeInOut 2s ease-in-out;
+            `;
+
+            const weaponNames = {
+                pistol: 'Pistol (∞)',
+                shotgun: 'Shotgun',
+                fragGrenade: 'Frag Grenade',
+                nuke: 'Nuke',
+                missile: 'Missile'
+            };
+
+            notification.textContent = weaponNames[currentWeapon] || currentWeapon;
+            document.body.appendChild(notification);
+
+            // Remove after animation
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 2000);
         }
 
         // Resize canvas function
@@ -962,16 +1054,44 @@
         if (isMobile) {
             const movementInstructions = document.getElementById('movement-instructions');
             const instructions = document.getElementById('instructions');
+            const weaponSelector = document.getElementById('mobile-weapon-selector');
+
             if (movementInstructions) {
                 movementInstructions.textContent = 'Tilt your device to move';
             }
             if (instructions) {
                 const shootInstructions = instructions.children[1]; // Second paragraph about shooting
                 if (shootInstructions) {
-                    shootInstructions.textContent = 'Tap anywhere on screen to shoot';
+                    shootInstructions.textContent = 'Tap screen to shoot, swipe left/right to change weapons';
                 }
             }
+
+            // Show mobile weapon selector
+            if (weaponSelector) {
+                weaponSelector.style.display = 'flex';
+            }
         }
+
+        // Mobile weapon selector functionality
+        function updateWeaponButtons() {
+            const buttons = document.querySelectorAll('.weapon-btn');
+            buttons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.weapon === currentWeapon);
+            });
+        }
+
+        // Add click handlers for weapon buttons
+        document.querySelectorAll('.weapon-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                currentWeapon = btn.dataset.weapon;
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+                updateWeaponButtons();
+                audioManager.playSound('buttonClick');
+            });
+        });
 
         // Define the walls of the maze
         let walls = [];
@@ -2765,6 +2885,12 @@
             shoot(mouseX, mouseY);
         });
 
+        // Touch swipe detection for weapon switching
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+        const weapons = ['pistol', 'shotgun', 'fragGrenade', 'nuke', 'missile'];
+
         // Touch events for mobile
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault(); // Prevent default touch behavior
@@ -2773,13 +2899,23 @@
             const touchX = touch.clientX - rect.left;
             const touchY = touch.clientY - rect.top;
 
+            // Store touch start position for swipe detection
+            touchStartX = touchX;
+            touchStartY = touchY;
+            touchStartTime = Date.now();
+
             // Update mouse position for aiming
             mouseX = touchX;
             mouseY = touchY;
             mouseMoved = true;
 
-            // Shoot immediately on touch
-            shoot(touchX, touchY);
+            // Shoot immediately on touch (will be overridden by swipe if detected)
+            setTimeout(() => {
+                // Only shoot if no swipe was detected
+                if (Date.now() - touchStartTime < 200) {
+                    shoot(touchX, touchY);
+                }
+            }, 50);
         });
 
         canvas.addEventListener('touchmove', (e) => {
@@ -2793,6 +2929,46 @@
 
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
+
+            // Detect swipe for weapon switching
+            const touchEndTime = Date.now();
+            const swipeTime = touchEndTime - touchStartTime;
+
+            if (swipeTime < 300) { // Quick swipe
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.changedTouches[0];
+                const touchEndX = touch.clientX - rect.left;
+                const touchEndY = touch.clientY - rect.top;
+
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const swipeDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                // Minimum swipe distance of 50px
+                if (swipeDistance > 50) {
+                    const currentWeaponIndex = weapons.indexOf(currentWeapon);
+
+                    // Horizontal swipes change weapons
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        if (deltaX > 0) {
+                            // Swipe right - next weapon
+                            const nextIndex = (currentWeaponIndex + 1) % weapons.length;
+                            currentWeapon = weapons[nextIndex];
+                        } else {
+                            // Swipe left - previous weapon
+                            const prevIndex = (currentWeaponIndex - 1 + weapons.length) % weapons.length;
+                            currentWeapon = weapons[prevIndex];
+                        }
+                        updateWeaponDisplay();
+                        updateAmmoDisplay();
+                        updateWeaponButtons();
+                        audioManager.playSound('buttonClick');
+
+                        // Show weapon change feedback
+                        showWeaponChangeNotification();
+                    }
+                }
+            }
         });
 
         char1Button.addEventListener('click', async () => {
@@ -2823,6 +2999,11 @@
             startMenu.style.display = 'flex';
             gameOverScreen.style.display = 'none';
         });
+
+        // Initialize mobile weapon buttons
+        if (isMobile) {
+            updateWeaponButtons();
+        }
 
     </script>
 </body>
