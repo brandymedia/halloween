@@ -101,57 +101,84 @@
                 margin: 5px !important;
             }
 
-            /* Mobile weapon selector */
-            #mobile-weapon-selector {
-                display: flex !important;
+            /* Mobile weapon drawer */
+            #weapon-drawer-trigger {
                 position: fixed;
-                bottom: 10px;
-                right: 10px;
-                background: rgba(0, 0, 0, 0.3);
-                border-radius: 20px;
-                padding: 5px;
+                bottom: 20px;
+                right: 20px;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                background: rgba(0, 0, 0, 0.7);
+                border: 2px solid rgba(255, 255, 255, 0.8);
+                color: #fff;
+                font-size: 1.2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 101;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+
+            #weapon-drawer-trigger:hover {
+                background: rgba(0, 0, 0, 0.9);
+                transform: scale(1.1);
+            }
+
+            #weapon-drawer {
+                position: fixed;
+                bottom: 20px;
+                right: 95px;
+                background: rgba(0, 0, 0, 0.8);
+                border-radius: 30px;
+                padding: 10px;
                 z-index: 100;
-                gap: 5px;
-                transition: opacity 0.3s ease, transform 0.3s ease;
-                opacity: 0.6;
-                transform: scale(0.8);
-            }
-
-            #mobile-weapon-selector.show {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            #mobile-weapon-selector.hide {
-                opacity: 0.2;
-                transform: scale(0.6);
+                display: flex;
+                gap: 8px;
+                transform: translateX(100px) scale(0);
+                opacity: 0;
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
                 pointer-events: none;
             }
 
+            #weapon-drawer.open {
+                transform: translateX(0) scale(1);
+                opacity: 1;
+                pointer-events: all;
+            }
+
             .weapon-btn {
-                width: 35px !important;
-                height: 35px !important;
+                width: 45px !important;
+                height: 45px !important;
                 border-radius: 50% !important;
-                border: 1px solid rgba(255, 255, 255, 0.5) !important;
+                border: 2px solid rgba(255, 255, 255, 0.6) !important;
                 background: rgba(255, 255, 255, 0.1) !important;
                 color: #fff !important;
-                font-size: 0.5rem !important;
+                font-size: 0.6rem !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 font-family: 'Press Start 2P', cursive !important;
                 transition: all 0.2s ease !important;
+                cursor: pointer !important;
+            }
+
+            .weapon-btn:hover {
+                background: rgba(255, 255, 255, 0.2) !important;
+                transform: scale(1.1) !important;
             }
 
             .weapon-btn.active {
-                background: rgba(255, 255, 255, 0.4) !important;
+                background: rgba(255, 255, 0, 0.3) !important;
                 border-color: #ffff00 !important;
-                transform: scale(1.1) !important;
+                color: #000 !important;
+                font-weight: bold !important;
             }
         }
 
-        /* Hide mobile weapon selector on desktop */
-        #mobile-weapon-selector {
+        /* Hide mobile weapon elements on desktop */
+        #weapon-drawer-trigger, #weapon-drawer {
             display: none;
         }
 
@@ -376,8 +403,9 @@
             </div>
         </div>
 
-        <!-- Mobile weapon selector -->
-        <div id="mobile-weapon-selector">
+        <!-- Mobile weapon drawer -->
+        <div id="weapon-drawer-trigger">⚔️</div>
+        <div id="weapon-drawer">
             <button class="weapon-btn" data-weapon="pistol">P</button>
             <button class="weapon-btn" data-weapon="shotgun">S</button>
             <button class="weapon-btn" data-weapon="fragGrenade">G</button>
@@ -1069,7 +1097,8 @@
         if (isMobile) {
             const movementInstructions = document.getElementById('movement-instructions');
             const instructions = document.getElementById('instructions');
-            const weaponSelector = document.getElementById('mobile-weapon-selector');
+            const weaponTrigger = document.getElementById('weapon-drawer-trigger');
+            const weaponDrawer = document.getElementById('weapon-drawer');
 
             if (movementInstructions) {
                 movementInstructions.textContent = 'Tilt your device to move';
@@ -1077,38 +1106,36 @@
             if (instructions) {
                 const shootInstructions = instructions.children[1]; // Second paragraph about shooting
                 if (shootInstructions) {
-                    shootInstructions.textContent = 'Tap screen to shoot, swipe left/right to change weapons';
+                    shootInstructions.textContent = 'Tap screen to shoot, tap ⚔️ to change weapons';
                 }
             }
 
-            // Show mobile weapon selector
-            if (weaponSelector) {
-                weaponSelector.style.display = 'flex';
+            // Show mobile weapon drawer elements
+            if (weaponTrigger) {
+                weaponTrigger.style.display = 'flex';
+            }
+            if (weaponDrawer) {
+                weaponDrawer.style.display = 'flex';
             }
         }
 
-        // Mobile weapon selector functionality
-        let weaponSelectorTimeout;
-        const weaponSelector = document.getElementById('mobile-weapon-selector');
+        // Mobile weapon drawer functionality
+        const weaponTrigger = document.getElementById('weapon-drawer-trigger');
+        const weaponDrawer = document.getElementById('weapon-drawer');
+        let isDrawerOpen = false;
 
-        function showWeaponSelector() {
-            if (!weaponSelector) return;
-            weaponSelector.classList.remove('hide');
-            weaponSelector.classList.add('show');
-
-            // Clear existing timeout
-            clearTimeout(weaponSelectorTimeout);
-
-            // Hide after 3 seconds of inactivity
-            weaponSelectorTimeout = setTimeout(() => {
-                hideWeaponSelector();
-            }, 3000);
+        function toggleWeaponDrawer() {
+            isDrawerOpen = !isDrawerOpen;
+            if (isDrawerOpen) {
+                weaponDrawer?.classList.add('open');
+            } else {
+                weaponDrawer?.classList.remove('open');
+            }
         }
 
-        function hideWeaponSelector() {
-            if (!weaponSelector) return;
-            weaponSelector.classList.remove('show');
-            weaponSelector.classList.add('hide');
+        function closeWeaponDrawer() {
+            isDrawerOpen = false;
+            weaponDrawer?.classList.remove('open');
         }
 
         function updateWeaponButtons() {
@@ -1117,9 +1144,26 @@
                 btn.classList.toggle('active', btn.dataset.weapon === currentWeapon);
             });
 
-            // Show selector when weapon changes
-            showWeaponSelector();
+            // Update trigger button to show current weapon
+            if (weaponTrigger && currentWeapon) {
+                const weaponIcons = {
+                    pistol: '🔫',
+                    shotgun: '🔫',
+                    fragGrenade: '💣',
+                    nuke: '☢️',
+                    missile: '🚀'
+                };
+                weaponTrigger.textContent = weaponIcons[currentWeapon] || '⚔️';
+            }
         }
+
+        // Add click handlers for weapon drawer
+        weaponTrigger?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWeaponDrawer();
+            audioManager.playSound('buttonClick');
+        });
 
         // Add click handlers for weapon buttons
         document.querySelectorAll('.weapon-btn').forEach(btn => {
@@ -1131,22 +1175,18 @@
                 updateAmmoDisplay();
                 updateWeaponButtons();
                 audioManager.playSound('buttonClick');
-                showWeaponSelector(); // Keep it visible longer after manual selection
+
+                // Close drawer after selection
+                closeWeaponDrawer();
             });
         });
 
-        // Show weapon selector on any touch interaction during gameplay
+        // Close drawer when clicking outside of it
         if (isMobile) {
             canvas.addEventListener('touchstart', () => {
-                if (!isGameOver) {
-                    showWeaponSelector();
+                if (isDrawerOpen) {
+                    closeWeaponDrawer();
                 }
-            });
-
-            // Also show on screen touch near the weapon selector area
-            weaponSelector?.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                showWeaponSelector();
             });
         }
 
@@ -3021,6 +3061,9 @@
                         updateWeaponButtons();
                         audioManager.playSound('buttonClick');
 
+                        // Close drawer if open
+                        closeWeaponDrawer();
+
                         // Show weapon change feedback
                         showWeaponChangeNotification();
                     }
@@ -3057,7 +3100,7 @@
             gameOverScreen.style.display = 'none';
         });
 
-        // Initialize mobile weapon buttons
+        // Initialize mobile weapon drawer
         if (isMobile) {
             updateWeaponButtons();
         }
