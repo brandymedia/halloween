@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Smasher</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css");
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
+            user-select: none;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        #game-container {
+            position: relative;
+            background-color: #333;
+            border: 4px solid #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            width: 90vw;
+            max-width: 800px;
+            height: calc(90vw * 0.75);
+            max-height: 600px;
+            aspect-ratio: 4/3;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 10;
+            text-align: center;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #start-menu {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        #game-over-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            display: none;
+        }
+
+        h1 {
+            font-size: clamp(1rem, 5vw, 2.5rem);
+            margin-bottom: 20px;
+            color: #ff4d4d;
+            text-shadow: 2px 2px #000;
+        }
+        
+        p {
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            margin: 10px 0;
+            text-shadow: 1px 1px #000;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+            font-family: 'Press Start 2P', cursive;
+            background-color: #4CAF50;
+            color: white;
+            border: 2px solid #388E3C;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px #2e7d32;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            background-color: #5cb85c;
+            transform: translateY(2px);
+            box-shadow: 0 2px #2e7d32;
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            color: #fff;
+            text-shadow: 1px 1px #000;
+            z-index: 5;
+        }
+        
+        #weapon-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            color: #fff;
+            text-shadow: 1px 1px #000;
+            z-index: 5;
+        }
+
+        #ammo-display {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            color: #fff;
+            text-shadow: 1px 1px #000;
+            z-index: 5;
+        }
+
+        #highScoreDisplay {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            color: #fff;
+            text-shadow: 1px 1px #000;
+            z-index: 5;
+        }
+
+
+        #character-selection {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .character-option {
+            width: 80px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            transition: border-color 0.2s ease;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+        }
+
+        .character-option:hover {
+            border-color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score-display">Score: 0</div>
+        <div id="highScoreDisplay">High Score: 0</div>
+        <div id="weapon-display">Weapon: Pistol</div>
+        <div id="ammo-display">Ammo: Inf</div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="game-ui">
+            <div id="start-menu">
+                <h1>Zombie Smasher</h1>
+                <p id="startHighScore">High Score: 0</p>
+                <p>Choose your character to begin</p>
+                <div id="character-selection">
+                    <div class="character-option" id="char1">
+                        <canvas id="char1Canvas" width="80" height="100"></canvas>
+                    </div>
+                    <div class="character-option" id="char2">
+                        <canvas id="char2Canvas" width="80" height="100"></canvas>
+                    </div>
+                    <div class="character-option" id="char3">
+                        <canvas id="char3Canvas" width="80" height="100"></canvas>
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 20px 0;">
+                    <p>Move with WASD or Arrow Keys</p>
+                    <p>Aim with the mouse and shoot with click or spacebar</p>
+                    <p>Collect mystery chests to get more ammo!</p>
+                </div>
+                <div style="font-size: 0.8em; margin: 10px auto;">
+                    <p>Switch weapons: 1 - Pistol | 2 - Shotgun | 3 - Grenade | 4 - Missile</p>
+                </div>
+            </div>
+            <div id="game-over-screen">
+                <h1>Game Over</h1>
+                <p>Final Score: <span id="finalScore">0</span></p>
+                <p>High Score: <span id="highScore">0</span></p>
+                <button id="restartButton" class="btn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const weaponDisplay = document.getElementById('weapon-display');
+        const ammoDisplay = document.getElementById('ammo-display');
+        const gameUI = document.getElementById('game-ui');
+        const startMenu = document.getElementById('start-menu');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const highScoreSpan = document.getElementById('highScore');
+        const startHighScoreSpan = document.getElementById('startHighScore');
+        const restartButton = document.getElementById('restartButton');
+        const char1Button = document.getElementById('char1');
+        const char2Button = document.getElementById('char2');
+        const char3Button = document.getElementById('char3');
+        const char1Canvas = document.getElementById('char1Canvas');
+        const char2Canvas = document.getElementById('char2Canvas');
+        const char3Canvas = document.getElementById('char3Canvas');
+        const ctx1 = char1Canvas.getContext('2d');
+        const ctx2 = char2Canvas.getContext('2d');
+        const ctx3 = char3Canvas.getContext('2d');
+
+        let isGameOver = true;
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
+        let animationId;
+        
+        let mouseX = 0;
+        let mouseY = 0;
+        let mouseMoved = false;
+
+        const player = {
+            x: 0,
+            y: 0,
+            radius: 15,
+            color: '#00f',
+            speed: 5,
+            frame: 0,
+            lastFrameChange: Date.now(),
+            variant: 0
+        };
+        
+        const characterVariants = [
+            // Variant 1: Grey Hoodie, Green Pants, Light Skin
+            { skinColor: '#ffdbac', hoodieColor: '#6c757d', pantsColor: '#526937' },
+            // Variant 2: Black Hoodie, Grey Pants, Dark Skin
+            { skinColor: '#8b4513', hoodieColor: '#000000', pantsColor: '#343a40' },
+            // Variant 3: Brown Hoodie, Tan Pants, Medium Skin
+            { skinColor: '#a0522d', hoodieColor: '#6f4e37', pantsColor: '#b08d57' }
+        ];
+
+        let playerDirection = { x: 0, y: -1 };
+        let currentWeapon = 'pistol';
+        let ammo = {
+            pistol: Infinity,
+            shotgun: 10,
+            bazooka: 1,
+            missile: 1
+        };
+        const maxAmmo = {
+            pistol: Infinity,
+            shotgun: 10,
+            bazooka: 1,
+            missile: 1
+        };
+
+        let keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false,
+            w: false,
+            s: false,
+            a: false,
+            d: false
+        };
+
+        let zombies = [];
+        let skeletons = [];
+        let playerBullets = [];
+        let enemyBullets = [];
+        let missiles = [];
+        let explosions = []; 
+        let chests = [];
+        
+        let lastZombieSpawn = 0;
+        const ZOMBIE_SPAWN_INTERVAL = 1000;
+        const ZOMBIE_ANIM_SPEED = 150;
+        const PLAYER_ANIM_SPEED = 100;
+        
+        let lastSkeletonSpawn = 0;
+        const SKELETON_SPAWN_INTERVAL = 5000;
+        const SKELETON_ANIM_SPEED = 150;
+        
+        let lastChestSpawn = 0;
+        const CHEST_SPAWN_INTERVAL = 15000;
+
+        const MAX_ZOMBIES = 10;
+        const MAX_SKELETONS = 10;
+
+        // Audio System
+        class AudioManager {
+            constructor() {
+                this.audioContext = null;
+                this.masterVolume = 0.7;
+                this.sfxVolume = 0.8;
+                this.musicVolume = 0.3;
+                this.sounds = {};
+                this.currentMusic = null;
+                this.enabled = true;
+                this.initialized = false;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.createSounds();
+                    this.initialized = true;
+                } catch (error) {
+                    console.warn('Audio not supported:', error);
+                    this.enabled = false;
+                }
+            }
+
+            createSounds() {
+                // Create procedural sounds using Web Audio API
+                this.sounds = {
+                    pistol: this.createGunSound(200, 0.1, 'saw'),
+                    shotgun: this.createGunSound(150, 0.15, 'square'),
+                    bazooka: this.createExplosionSound(80, 0.3),
+                    missile: this.createMissileSound(),
+                    enemyDeath: this.createDeathSound(),
+                    playerHit: this.createHitSound(),
+                    chestPickup: this.createPickupSound(),
+                    buttonClick: this.createClickSound(),
+                    doorOpen: this.createDoorSound()
+                };
+            }
+
+            createGunSound(frequency, duration, waveType = 'square') {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    const filterNode = this.audioContext.createBiquadFilter();
+
+                    oscillator.connect(filterNode);
+                    filterNode.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = waveType;
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.3, this.audioContext.currentTime + duration);
+
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.setValueAtTime(1000, this.audioContext.currentTime);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.3, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                };
+            }
+
+            createExplosionSound(frequency, duration) {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    // Create noise for explosion
+                    const bufferSize = this.audioContext.sampleRate * duration;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+
+                    const noiseSource = this.audioContext.createBufferSource();
+                    const filterNode = this.audioContext.createBiquadFilter();
+                    const gainNode = this.audioContext.createGain();
+
+                    noiseSource.buffer = buffer;
+                    noiseSource.connect(filterNode);
+                    filterNode.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    filterNode.frequency.exponentialRampToValueAtTime(frequency * 0.1, this.audioContext.currentTime + duration);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.5, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                    noiseSource.start(this.audioContext.currentTime);
+                    noiseSource.stop(this.audioContext.currentTime + duration);
+                };
+            }
+
+            createMissileSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(100, this.audioContext.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(200, this.audioContext.currentTime + 0.3);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.2, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.3);
+                };
+            }
+
+            createDeathSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.2);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.15, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.2);
+                };
+            }
+
+            createHitSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.4, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.1);
+                };
+            }
+
+            createPickupSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(523, this.audioContext.currentTime);
+                    oscillator.frequency.setValueAtTime(659, this.audioContext.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(784, this.audioContext.currentTime + 0.2);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.3, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.3);
+                };
+            }
+
+            createClickSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(1000, this.audioContext.currentTime);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.05);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.05);
+                };
+            }
+
+            createDoorSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(150, this.audioContext.currentTime + 0.2);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.2);
+                };
+            }
+
+            playSound(soundName) {
+                if (this.sounds[soundName]) {
+                    this.sounds[soundName]();
+                }
+            }
+
+            startBackgroundMusic() {
+                if (!this.enabled || !this.audioContext) return;
+
+                // Simple ambient background tone
+                const oscillator1 = this.audioContext.createOscillator();
+                const oscillator2 = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator1.connect(gainNode);
+                oscillator2.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator1.type = 'sine';
+                oscillator2.type = 'sine';
+                oscillator1.frequency.setValueAtTime(110, this.audioContext.currentTime);
+                oscillator2.frequency.setValueAtTime(165, this.audioContext.currentTime);
+
+                gainNode.gain.setValueAtTime(this.musicVolume * this.masterVolume * 0.05, this.audioContext.currentTime);
+
+                oscillator1.start();
+                oscillator2.start();
+
+                this.currentMusic = { oscillator1, oscillator2, gainNode };
+            }
+
+            stopBackgroundMusic() {
+                if (this.currentMusic) {
+                    this.currentMusic.oscillator1.stop();
+                    this.currentMusic.oscillator2.stop();
+                    this.currentMusic = null;
+                }
+            }
+        }
+
+        const audioManager = new AudioManager();
+        
+        // Define the walls of the maze
+        let walls = [];
+        let doors = [];
+        const baseSize = 250;
+        const doorSize = 70;
+        const wallThickness = 20;
+        
+        function createWalls() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const wallColor = '#b0b0b0'; 
+            const doorColor = '#8c8c8c';
+            
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const size = 250;
+            const wallHalfSize = size / 2;
+            const doorOffset = 40;
+            const topDoorX = centerX - doorSize / 2;
+            const topDoorY = centerY - wallHalfSize;
+            const bottomDoorX = centerX - doorSize / 2;
+            const bottomDoorY = centerY + wallHalfSize - wallThickness;
+
+            walls = [
+                // Top walls with door gap
+                { x: centerX - wallHalfSize, y: centerY - wallHalfSize, width: (size - doorSize) / 2, height: wallThickness, color: wallColor },
+                { x: centerX + doorSize / 2, y: centerY - wallHalfSize, width: (size - doorSize) / 2, height: wallThickness, color: wallColor },
+                
+                // Bottom wall with door gap
+                { x: centerX - wallHalfSize, y: centerY + wallHalfSize - wallThickness, width: (size - doorSize) / 2, height: wallThickness, color: wallColor },
+                { x: centerX + doorSize / 2, y: centerY + wallHalfSize - wallThickness, width: (size - doorSize) / 2, height: wallThickness, color: wallColor },
+                
+                // Left wall
+                { x: centerX - wallHalfSize, y: centerY - wallHalfSize, width: wallThickness, height: size, color: wallColor },
+                
+                // Right wall
+                { x: centerX + wallHalfSize - wallThickness, y: centerY - wallHalfSize, width: wallThickness, height: size, color: wallColor },
+            ];
+
+            // Define the two doors
+            doors = [
+                { x: topDoorX, y: topDoorY, width: doorSize, height: wallThickness, color: doorColor, open: false },
+                { x: bottomDoorX, y: bottomDoorY, width: doorSize, height: wallThickness, color: doorColor, open: false }
+            ];
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'clamp(0.7rem, 2vw, 1.2rem) "Press Start 2P"';
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'top';
+            createWalls();
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        function drawWalls() {
+            walls.forEach(wall => {
+                ctx.fillStyle = wall.color;
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+            });
+            doors.forEach(door => {
+                if (!door.open) {
+                    ctx.fillStyle = door.color;
+                    ctx.fillRect(door.x, door.y, door.width, door.height);
+                }
+            });
+        }
+        
+        function drawPlayerFrame(drawCtx, x, y, frame, variant) {
+            const size = 3;
+            const { skinColor, hoodieColor, pantsColor } = characterVariants[variant];
+
+            // Head & Hood
+            drawCtx.fillStyle = hoodieColor;
+            drawCtx.fillRect(x - 5 * size, y - 8 * size, 11 * size, 8 * size);
+            
+            drawCtx.fillStyle = skinColor;
+            drawCtx.fillRect(x - 2 * size, y - 5 * size, 5 * size, 4 * size);
+            
+            drawCtx.fillStyle = '#000000'; // Eyes
+            drawCtx.fillRect(x - 2 * size, y - 4 * size, size, size);
+            drawCtx.fillRect(x + size, y - 4 * size, size, size);
+
+            // Body & Arms
+            drawCtx.fillStyle = hoodieColor;
+            drawCtx.fillRect(x - 4 * size, y - 2 * size, 9 * size, 8 * size);
+            
+            const armOffset = frame === 1 ? -size : (frame === 2 ? size : 0);
+            drawCtx.fillRect(x - 6 * size, y + size + armOffset, 2 * size, 6 * size); // Left arm
+            drawCtx.fillRect(x + 5 * size, y + size - armOffset, 2 * size, 6 * size); // Right arm
+
+            // Legs
+            const legOffset = frame === 1 ? -size : (frame === 2 ? size : 0);
+            drawCtx.fillStyle = pantsColor;
+            drawCtx.fillRect(x - 3 * size, y + 6 * size + legOffset, 3 * size, 6 * size);
+            drawCtx.fillRect(x + size, y + 6 * size - legOffset, 3 * size, 6 * size);
+        }
+
+        function checkWallCollision(x, y, radius) {
+            for (const wall of walls) {
+                const testX = Math.max(wall.x, Math.min(x, wall.x + wall.width));
+                const testY = Math.max(wall.y, Math.min(y, wall.y + wall.height));
+                const distX = x - testX;
+                const distY = y - testY;
+                const distance = Math.sqrt((distX * distX) + (distY * distY));
+                if (distance <= radius) {
+                    return true;
+                }
+            }
+            for (const door of doors) {
+                if (!door.open) {
+                    const testX = Math.max(door.x, Math.min(x, door.x + door.width));
+                    const testY = Math.max(door.y, Math.min(y, door.y + door.height));
+                    const distX = x - testX;
+                    const distY = y - testY;
+                    const distance = Math.sqrt((distX * distX) + (distY * distY));
+                    if (distance <= radius) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        function isInsideBase(x, y) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const baseStartX = w / 2 - baseSize / 2;
+            const baseStartY = h / 2 - baseSize / 2;
+            const baseEndX = w / 2 + baseSize / 2;
+            const baseEndY = h / 2 + baseSize / 2;
+
+            return x > baseStartX && x < baseEndX && y > baseStartY && y < baseEndY;
+        }
+
+
+        function updatePlayerPosition() {
+            let dx = 0;
+            let dy = 0;
+            const currentSpeed = player.speed;
+
+            if (keys.ArrowUp || keys.w) dy = -currentSpeed;
+            if (keys.ArrowDown || keys.s) dy = currentSpeed;
+            if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
+            if (keys.ArrowRight || keys.d) dx = currentSpeed;
+
+            // Normalize vector for consistent diagonal speed
+            if (dx !== 0 && dy !== 0) {
+                const magnitude = Math.sqrt(dx * dx + dy * dy);
+                dx = (dx / magnitude) * currentSpeed;
+                dy = (dy / magnitude) * currentSpeed;
+            }
+            
+            const newX = player.x + dx;
+            const newY = player.y + dy;
+
+            // Check for wall collisions
+            if (!checkWallCollision(newX, player.y, player.radius)) {
+                player.x = newX;
+            }
+            if (!checkWallCollision(player.x, newY, player.radius)) {
+                player.y = newY;
+            }
+
+            // Update playerDirection and animation frame only if moving
+            if (dx !== 0 || dy !== 0) {
+                playerDirection.x = dx;
+                playerDirection.y = dy;
+                if (Date.now() - player.lastFrameChange > PLAYER_ANIM_SPEED) {
+                    player.frame = (player.frame + 1) % 3;
+                    player.lastFrameChange = Date.now();
+                }
+            } else {
+                player.frame = 0;
+            }
+
+            // Boundary checks
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+            
+            // Door logic
+            doors.forEach(door => {
+                const dist = Math.hypot(player.x - (door.x + door.width/2), player.y - (door.y + door.height/2));
+                const wasOpen = door.open;
+                if (dist < player.radius + 30) {
+                    door.open = true;
+                    if (!wasOpen) {
+                        audioManager.playSound('doorOpen');
+                    }
+                } else {
+                    door.open = false;
+                }
+            });
+        }
+
+        function spawnZombie() {
+            if (zombies.length >= MAX_ZOMBIES) return;
+            if (Date.now() - lastZombieSpawn < ZOMBIE_SPAWN_INTERVAL) return;
+            lastZombieSpawn = Date.now();
+
+            let x, y;
+            const padding = 20;
+            const edge = Math.random() * 4;
+
+            if (edge < 1) { // Top
+                x = Math.random() * canvas.width;
+                y = -padding;
+            } else if (edge < 2) { // Right
+                x = canvas.width + padding;
+                y = Math.random() * canvas.height;
+            } else if (edge < 3) { // Bottom
+                x = Math.random() * canvas.width;
+                y = canvas.height + padding;
+            } else { // Left
+                x = -padding;
+                y = Math.random() * canvas.height;
+            }
+            
+            zombies.push({ 
+                x, y, 
+                size: 15, 
+                speed: Math.random() * 0.5 + 0.5,
+                frame: 0,
+                lastFrameChange: Date.now(),
+                active: false,
+                idleDirection: { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 }
+            });
+        }
+        
+        function spawnSkeleton() {
+            if (skeletons.length >= MAX_SKELETONS) return;
+            if (Date.now() - lastSkeletonSpawn < SKELETON_SPAWN_INTERVAL) return;
+            lastSkeletonSpawn = Date.now();
+            
+            let x, y;
+            const padding = 20;
+            const edge = Math.random() * 4;
+            
+            if (edge < 1) { // Top
+                x = Math.random() * canvas.width;
+                y = -padding;
+            } else if (edge < 2) { // Right
+                x = canvas.width + padding;
+                y = Math.random() * canvas.height;
+            } else if (edge < 3) { // Bottom
+                x = Math.random() * canvas.width;
+                y = canvas.height + padding;
+            } else { // Left
+                x = -padding;
+                y = Math.random() * canvas.height;
+            }
+
+            skeletons.push({
+                x, y,
+                size: 15,
+                speed: Math.random() * 0.5 + 0.5,
+                frame: 0,
+                lastFrameChange: Date.now(),
+                active: false,
+                idleDirection: { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 }
+            });
+        }
+        
+        function checkEnemyWallCollision(x, y, radius) {
+             for (const wall of walls) {
+                const testX = Math.max(wall.x, Math.min(x, wall.x + wall.width));
+                const testY = Math.max(wall.y, Math.min(y, wall.y + wall.height));
+                const distX = x - testX;
+                const distY = y - testY;
+                const distance = Math.sqrt((distX * distX) + (distY * distY));
+                if (distance <= radius) {
+                    return true;
+                }
+            }
+            for (const door of doors) {
+                if (!door.open) {
+                    const testX = Math.max(door.x, Math.min(x, door.x + door.width));
+                    const testY = Math.max(door.y, Math.min(y, door.y + door.height));
+                    const distX = x - testX;
+                    const distY = y - testY;
+                    const distance = Math.sqrt((distX * distX) + (distY * distY));
+                    if (distance <= radius) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function updateZombies() {
+            zombies.forEach(zombie => {
+                const distance = Math.hypot(player.x - zombie.x, player.y - zombie.y);
+                if (distance < 200) {
+                    zombie.active = true;
+                }
+
+                if (zombie.active) {
+                    const angle = Math.atan2(player.y - zombie.y, player.x - zombie.x);
+                    const dx = Math.cos(angle) * zombie.speed;
+                    const dy = Math.sin(angle) * zombie.speed;
+                    
+                    if (!checkEnemyWallCollision(zombie.x + dx, zombie.y, zombie.size)) {
+                        zombie.x += dx;
+                    }
+                    if (!checkEnemyWallCollision(zombie.x, zombie.y + dy, zombie.size)) {
+                        zombie.y += dy;
+                    }
+
+                    // Animate zombie
+                    if (Date.now() - zombie.lastFrameChange > ZOMBIE_ANIM_SPEED) {
+                        zombie.frame = (zombie.frame + 1) % 2; 
+                        zombie.lastFrameChange = Date.now();
+                    }
+                } else {
+                    let dx = zombie.idleDirection.x * zombie.speed * 0.5;
+                    let dy = zombie.idleDirection.y * zombie.speed * 0.5;
+                    
+                    // Check for wall collisions in idle state
+                    if (checkEnemyWallCollision(zombie.x + dx, zombie.y, zombie.size) || Math.random() < 0.01) {
+                         const newAngle = Math.random() * Math.PI * 2;
+                         zombie.idleDirection.x = Math.cos(newAngle);
+                         zombie.idleDirection.y = Math.sin(newAngle);
+                    }
+                    if (checkEnemyWallCollision(zombie.x, zombie.y + dy, zombie.size) || Math.random() < 0.01) {
+                         const newAngle = Math.random() * Math.PI * 2;
+                         zombie.idleDirection.x = Math.cos(newAngle);
+                         zombie.idleDirection.y = Math.sin(newAngle);
+                    }
+                    
+                    zombie.x += zombie.idleDirection.x * zombie.speed * 0.5;
+                    zombie.y += zombie.idleDirection.y * zombie.speed * 0.5;
+
+                    if (Date.now() - zombie.lastFrameChange > ZOMBIE_ANIM_SPEED) {
+                        zombie.frame = (zombie.frame + 1) % 2;
+                        zombie.lastFrameChange = Date.now();
+                    }
+                }
+            });
+        }
+        
+        function updateSkeletons() {
+            skeletons.forEach(skeleton => {
+                const distance = Math.hypot(player.x - skeleton.x, player.y - skeleton.y);
+                if (distance < 200) {
+                    skeleton.active = true;
+                }
+
+                if (skeleton.active) {
+                    const angle = Math.atan2(player.y - skeleton.y, player.x - skeleton.x);
+                    const dx = Math.cos(angle) * skeleton.speed;
+                    const dy = Math.sin(angle) * skeleton.speed;
+
+                    if (!checkEnemyWallCollision(skeleton.x + dx, skeleton.y, skeleton.size)) {
+                        skeleton.x += dx;
+                    }
+                    if (!checkEnemyWallCollision(skeleton.x, skeleton.y + dy, skeleton.size)) {
+                        skeleton.y += dy;
+                    }
+                    // Animate skeleton
+                    if (Date.now() - skeleton.lastFrameChange > SKELETON_ANIM_SPEED) {
+                        skeleton.frame = (skeleton.frame + 1) % 2;
+                        skeleton.lastFrameChange = Date.now();
+                    }
+                } else {
+                    let dx = skeleton.idleDirection.x * skeleton.speed * 0.5;
+                    let dy = skeleton.idleDirection.y * skeleton.speed * 0.5;
+                    
+                    if (checkEnemyWallCollision(skeleton.x + dx, skeleton.y, skeleton.size) || Math.random() < 0.01) {
+                        const newAngle = Math.random() * Math.PI * 2;
+                        skeleton.idleDirection.x = Math.cos(newAngle);
+                        skeleton.idleDirection.y = Math.sin(newAngle);
+                    }
+                    if (checkEnemyWallCollision(skeleton.x, skeleton.y + dy, skeleton.size) || Math.random() < 0.01) {
+                        const newAngle = Math.random() * Math.PI * 2;
+                        skeleton.idleDirection.x = Math.cos(newAngle);
+                        skeleton.idleDirection.y = Math.sin(newAngle);
+                    }
+                    
+                    skeleton.x += skeleton.idleDirection.x * skeleton.speed * 0.5;
+                    skeleton.y += skeleton.idleDirection.y * skeleton.speed * 0.5;
+                    
+                    if (Date.now() - skeleton.lastFrameChange > SKELETON_ANIM_SPEED) {
+                        skeleton.frame = (skeleton.frame + 1) % 2;
+                        skeleton.lastFrameChange = Date.now();
+                    }
+                }
+            });
+        }
+        
+        function drawZombies() {
+            zombies.forEach(zombie => {
+                drawZombieFrame(zombie.x, zombie.y, zombie.frame);
+            });
+        }
+        
+        function drawZombieFrame(x, y, frame) {
+            const size = 3;
+            const bodyColor = '#8b5e2f'; 
+            const mouthColor = '#000000';
+            const teethColor = '#ffffff';
+            const skinColor = '#724f2b';
+            const eyeColor = '#3c6e4e';
+
+            // Head
+            ctx.fillStyle = skinColor;
+            ctx.fillRect(x - 4 * size, y - 5 * size, 8 * size, 6 * size);
+            
+            // Mouth
+            ctx.fillStyle = mouthColor;
+            ctx.fillRect(x - 3 * size, y, 6 * size, 3 * size);
+
+            // Teeth
+            ctx.fillStyle = teethColor;
+            ctx.fillRect(x - 3 * size, y, 2 * size, size);
+            ctx.fillRect(x + size, y, 2 * size, size);
+            ctx.fillRect(x - 2 * size, y + size, 2 * size, size);
+            ctx.fillRect(x, y + size, 2 * size, size);
+
+            // Eyes
+            ctx.fillStyle = eyeColor;
+            ctx.fillRect(x - 3 * size, y - 4 * size, 2 * size, 2 * size);
+            ctx.fillRect(x + size, y - 4 * size, 2 * size, 2 * size);
+
+            // Body
+            ctx.fillStyle = '#4b6e5b';
+            ctx.fillRect(x - 4 * size, y + 2 * size, 8 * size, 6 * size);
+
+            // Arms
+            const armOffset = frame === 0 ? 3 * size : -3 * size;
+            ctx.fillStyle = skinColor;
+            ctx.fillRect(x - 6 * size, y + 2 * size + armOffset, 2 * size, 4 * size);
+            ctx.fillRect(x + 4 * size, y + 2 * size - armOffset, 2 * size, 4 * size);
+
+            // Legs
+            const legOffset = frame === 0 ? size : -size;
+            ctx.fillStyle = bodyColor;
+            ctx.fillRect(x - 4 * size, y + 8 * size + legOffset, 3 * size, 4 * size);
+            ctx.fillRect(x + size, y + 8 * size - legOffset, 3 * size, 4 * size);
+        }
+        
+        function drawSkeletons() {
+            skeletons.forEach(skeleton => {
+                drawSkeletonFrame(skeleton.x, skeleton.y, skeleton.frame);
+            });
+        }
+
+        function drawSkeletonFrame(x, y, frame) {
+            const size = 3;
+            const boneColor = '#ffffff';
+            const eyeColor = '#000000';
+
+            // Head (Skull)
+            ctx.fillStyle = boneColor;
+            ctx.fillRect(x - 3 * size, y - 6 * size, 6 * size, 6 * size);
+            
+            // Eye sockets
+            ctx.fillStyle = eyeColor;
+            ctx.fillRect(x - 2 * size, y - 4 * size, size, size);
+            ctx.fillRect(x + size, y - 4 * size, size, size);
+
+            // Nose
+            ctx.fillRect(x - size / 2, y - 2 * size, size, size);
+            
+            // Teeth
+            ctx.fillStyle = boneColor;
+            ctx.fillRect(x - 2 * size, y - size, 4 * size, size);
+
+            // Body
+            ctx.fillStyle = boneColor;
+            ctx.fillRect(x - 2 * size, y, 4 * size, 8 * size);
+
+            // Arms
+            const armOffset = frame === 0 ? 3 * size : -3 * size;
+            ctx.fillRect(x - 5 * size, y + size + armOffset, 2 * size, 6 * size);
+            ctx.fillRect(x + 3 * size, y + size - armOffset, 2 * size, 6 * size);
+
+            // Legs
+            const legOffset = frame === 0 ? size : -size;
+            ctx.fillRect(x - 2 * size, y + 8 * size + legOffset, 2 * size, 6 * size);
+            ctx.fillRect(x + size, y + 8 * size - legOffset, 2 * size, 6 * size);
+        }
+
+        function shoot(targetX, targetY) {
+            if (isGameOver) return;
+            
+            let dx, dy;
+            if (mouseMoved) {
+                dx = mouseX - player.x;
+                dy = mouseY - player.y;
+            } else {
+                dx = playerDirection.x;
+                dy = playerDirection.y;
+            }
+
+            const angle = Math.atan2(dy, dx);
+            const magnitude = Math.hypot(dx, dy);
+
+            if (magnitude === 0) return;
+            
+
+            if (currentWeapon === 'pistol') {
+                if (ammo.pistol <= 0) return;
+                ammo.pistol--;
+                audioManager.playSound('pistol');
+                const speed = 10;
+                playerBullets.push({
+                    x: player.x,
+                    y: player.y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    radius: 4,
+                    color: '#ffdd4d'
+                });
+            } else if (currentWeapon === 'shotgun') {
+                if (ammo.shotgun <= 0) return;
+                ammo.shotgun--;
+                audioManager.playSound('shotgun');
+                const speed = 8;
+                const spreadAngle = Math.PI / 16;
+                for (let i = -2; i <= 2; i++) {
+                    const newAngle = angle + (i * spreadAngle);
+                    playerBullets.push({
+                        x: player.x,
+                        y: player.y,
+                        dx: Math.cos(newAngle) * speed,
+                        dy: Math.sin(newAngle) * speed,
+                        radius: 3,
+                        color: '#ffdd4d'
+                    });
+                }
+            } else if (currentWeapon === 'bazooka') {
+                if (ammo.bazooka <= 0) return;
+                ammo.bazooka--;
+                audioManager.playSound('bazooka');
+                explosions.push({
+                    x: targetX,
+                    y: targetY,
+                    radius: 0,
+                    maxRadius: 150,
+                    life: 1,
+                    particles: []
+                });
+                score += zombies.length * 10;
+                zombies = [];
+                score += skeletons.length * 20;
+                skeletons = [];
+                scoreDisplay.textContent = `Score: ${score}`;
+            } else if (currentWeapon === 'missile') {
+                if (ammo.missile <= 0) return;
+                ammo.missile--;
+                audioManager.playSound('missile');
+                if (zombies.length > 0) {
+                    let targetZombie = null;
+                    let minDistance = Infinity;
+                    zombies.forEach(zombie => {
+                        const distance = Math.hypot(player.x - zombie.x, player.y - zombie.y);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            targetZombie = zombie;
+                        }
+                    });
+
+                    if (targetZombie) {
+                        missiles.push({
+                            x: player.x,
+                            y: player.y,
+                            speed: 4,
+                            radius: 8,
+                            color: '#e6e6e6',
+                            target: targetZombie,
+                            hit: false
+                        });
+                    }
+                }
+            }
+            updateAmmoDisplay();
+        }
+
+        function updatePlayerBullets() {
+            playerBullets.forEach(bullet => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+            });
+            playerBullets = playerBullets.filter(bullet => bullet.x > -10 && bullet.x < canvas.width + 10 && bullet.y > -10 && bullet.y < canvas.height + 10);
+        }
+        
+        function updateEnemyBullets() {
+            enemyBullets.forEach(bullet => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+            });
+            enemyBullets = enemyBullets.filter(bullet => bullet.x > -10 && bullet.x < canvas.width + 10 && bullet.y > -10 && bullet.y < canvas.height + 10);
+        }
+
+        function drawBullets() {
+            playerBullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+            });
+            enemyBullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+            });
+        }
+        
+        function updateMissiles() {
+            missiles.forEach(missile => {
+                if (missile.target) {
+                    const angle = Math.atan2(missile.target.y - missile.y, missile.target.x - missile.x);
+                    missile.x += Math.cos(angle) * missile.speed;
+                    missile.y += Math.sin(angle) * missile.speed;
+                }
+            });
+        }
+
+        function drawMissiles() {
+            missiles.forEach(missile => {
+                ctx.beginPath();
+                ctx.arc(missile.x, missile.y, missile.radius, 0, Math.PI * 2);
+                ctx.fillStyle = missile.color;
+                ctx.fill();
+            });
+        }
+
+        function updateExplosions() {
+            explosions.forEach(explosion => {
+                explosion.radius += 5;
+                if (explosion.radius > explosion.maxRadius) {
+                    explosion.life -= 0.05;
+                }
+                
+                for (let i = 0; i < 5; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 5 + 1;
+                    const color = Math.random() > 0.5 ? '#ff4500' : '#ffa500';
+                    explosion.particles.push({
+                        x: explosion.x,
+                        y: explosion.y,
+                        dx: Math.cos(angle) * speed,
+                        dy: Math.sin(angle) * speed,
+                        radius: 3,
+                        life: 1,
+                        color: color
+                    });
+                }
+                
+                explosion.particles.forEach(particle => {
+                    particle.x += particle.dx;
+                    particle.y += particle.dy;
+                    particle.life -= 0.02;
+                    particle.radius *= 0.98;
+                });
+
+                explosion.particles = explosion.particles.filter(p => p.life > 0);
+            });
+            
+            explosions = explosions.filter(e => e.life > 0);
+        }
+
+        function drawExplosions() {
+            explosions.forEach(explosion => {
+                ctx.save();
+                ctx.globalAlpha = explosion.life;
+                ctx.fillStyle = '#ff4500';
+                ctx.beginPath();
+                ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                explosion.particles.forEach(particle => {
+                    ctx.save();
+                    ctx.globalAlpha = particle.life;
+                    ctx.fillStyle = particle.color;
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                });
+            });
+        }
+        
+        function spawnChest() {
+            if (Date.now() - lastChestSpawn < CHEST_SPAWN_INTERVAL) return;
+            lastChestSpawn = Date.now();
+
+            let x, y;
+            let attempt = 0;
+            do {
+                x = Math.random() * (canvas.width - 50) + 25;
+                y = Math.random() * (canvas.height - 50) + 25;
+                attempt++;
+            } while (checkWallCollision(x, y, 20) && attempt < 100);
+            
+            if (attempt < 100) {
+                chests.push({
+                    x, y,
+                    size: 20,
+                    color: '#8b4513'
+                });
+            }
+        }
+
+        function drawChests() {
+            chests.forEach(chest => {
+                ctx.fillStyle = chest.color;
+                ctx.fillRect(chest.x - chest.size/2, chest.y - chest.size/2, chest.size, chest.size);
+                
+                ctx.fillStyle = '#ffc107';
+                ctx.font = '16px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('?', chest.x, chest.y);
+            });
+        }
+
+        function checkCollisions() {
+            const size = 3;
+            // Player bullets vs enemies
+            playerBullets.forEach((bullet, bIndex) => {
+                // Check against zombies
+                zombies.forEach((zombie, zIndex) => {
+                    const headshotX = bullet.x > zombie.x - 4 * size && bullet.x < zombie.x + 4 * size;
+                    const headshotY = bullet.y > zombie.y - 5 * size && bullet.y < zombie.y + size;
+                    
+                    const distance = Math.hypot(bullet.x - zombie.x, bullet.y - (zombie.y + 2 * size));
+
+                    if (headshotX && headshotY) {
+                         setTimeout(() => {
+                            playerBullets.splice(bIndex, 1);
+                            zombies.splice(zIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            score += 30; // Headshot bonus
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    } else if (distance < bullet.radius + 12) {
+                        setTimeout(() => {
+                            playerBullets.splice(bIndex, 1);
+                            zombies.splice(zIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            score += 10;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    }
+                });
+                
+                // Check against skeletons
+                skeletons.forEach((skeleton, sIndex) => {
+                    const headshotX = bullet.x > skeleton.x - 3 * size && bullet.x < skeleton.x + 3 * size;
+                    const headshotY = bullet.y > skeleton.y - 6 * size && bullet.y < skeleton.y;
+
+                    const distance = Math.hypot(bullet.x - skeleton.x, bullet.y - skeleton.y);
+
+                    if (headshotX && headshotY) {
+                         setTimeout(() => {
+                            playerBullets.splice(bIndex, 1);
+                            skeletons.splice(sIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            score += 50; // Headshot bonus
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    } else if (distance < bullet.radius + skeleton.size) {
+                         setTimeout(() => {
+                            playerBullets.splice(bIndex, 1);
+                            skeletons.splice(sIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            score += 20;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    }
+                });
+                
+                // Check against walls
+                if (checkWallCollision(bullet.x, bullet.y, bullet.radius)) {
+                    setTimeout(() => {
+                        playerBullets.splice(bIndex, 1);
+                    }, 0);
+                }
+            });
+            
+            // Missile vs enemies
+            missiles.forEach((missile, mIndex) => {
+                zombies.forEach((zombie, zIndex) => {
+                    const distance = Math.hypot(missile.x - zombie.x, missile.y - (zombie.y - 18));
+                    if (distance < missile.radius + 12) {
+                        missile.hit = true;
+                        explosions.push({
+                            x: missile.x,
+                            y: missile.y,
+                            radius: 0,
+                            maxRadius: 100,
+                            life: 1,
+                            particles: []
+                        });
+                        setTimeout(() => {
+                            zombies.splice(zIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            score += 20;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    }
+                });
+            });
+            missiles = missiles.filter(m => !m.hit);
+
+            // Player vs enemies
+            zombies.forEach(zombie => {
+                const distance = Math.hypot(player.x - zombie.x, player.y - zombie.y);
+                if (distance < player.radius + zombie.size) {
+                    audioManager.playSound('playerHit');
+                    endGame();
+                }
+            });
+            skeletons.forEach(skeleton => {
+                 const distance = Math.hypot(player.x - skeleton.x, player.y - skeleton.y);
+                 if (distance < player.radius + skeleton.size) {
+                    audioManager.playSound('playerHit');
+                    endGame();
+                 }
+            });
+
+            // Player vs enemy bullets
+            enemyBullets.forEach(bullet => {
+                const distance = Math.hypot(player.x - bullet.x, player.y - bullet.y);
+                 if (distance < player.radius + bullet.radius) {
+                    audioManager.playSound('playerHit');
+                    endGame();
+                 }
+            });
+            
+            // Player vs chests
+            chests.forEach((chest, cIndex) => {
+                const distance = Math.hypot(player.x - chest.x, player.y - chest.y);
+                if (distance < player.radius + chest.size / 2) {
+                    audioManager.playSound('chestPickup');
+                    ammo = { ...maxAmmo };
+                    updateAmmoDisplay();
+                    chests.splice(cIndex, 1);
+                }
+            });
+        }
+
+        function endGame() {
+            isGameOver = true;
+            cancelAnimationFrame(animationId);
+            audioManager.stopBackgroundMusic();
+            finalScoreSpan.textContent = score;
+
+            // Check for and update high score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('zombieSmasherHighScore', highScore);
+            }
+            highScoreSpan.textContent = highScore;
+
+            gameUI.style.display = 'flex';
+            gameOverScreen.style.display = 'flex';
+            startMenu.style.display = 'none';
+        }
+
+        async function startGame() {
+            // Initialize audio on first user interaction
+            await audioManager.init();
+            audioManager.startBackgroundMusic();
+
+            isGameOver = false;
+            score = 0;
+            zombies = [];
+            skeletons = [];
+            playerBullets = [];
+            enemyBullets = [];
+            explosions = [];
+            missiles = [];
+            chests = [];
+            ammo = { ...maxAmmo };
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            scoreDisplay.textContent = 'Score: 0';
+            highScoreDisplay.textContent = `High Score: ${highScore}`;
+            gameUI.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            startMenu.style.display = 'none';
+            updateAmmoDisplay();
+            gameLoop();
+        }
+        
+        function updateWeaponDisplay() {
+            if (currentWeapon === 'pistol') {
+                weaponDisplay.textContent = 'Weapon: Pistol';
+            } else if (currentWeapon === 'shotgun') {
+                weaponDisplay.textContent = 'Weapon: Shotgun';
+            } else if (currentWeapon === 'bazooka') {
+                weaponDisplay.textContent = 'Weapon: Bazooka';
+            } else {
+                weaponDisplay.textContent = 'Weapon: Missile';
+            }
+        }
+        
+        function updateAmmoDisplay() {
+            const currentAmmo = ammo[currentWeapon];
+            if (currentWeapon === 'pistol') {
+                ammoDisplay.innerHTML = `Ammo: <span style="font-size: 3em; vertical-align: middle;">&infin;</span>`;
+            } else {
+                ammoDisplay.textContent = `Ammo: ${currentAmmo}`;
+            }
+        }
+
+        function gameLoop() {
+            if (isGameOver) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawWalls();
+
+            updatePlayerPosition();
+            spawnZombie();
+            spawnSkeleton();
+            updateZombies();
+            updateSkeletons();
+            updatePlayerBullets();
+            updateEnemyBullets();
+            updateMissiles();
+            updateExplosions();
+            spawnChest();
+            
+            // New logic to check for and remove enemies inside the base
+            zombies = zombies.filter(zombie => {
+                if (isInsideBase(zombie.x, zombie.y)) {
+                    explosions.push({
+                        x: zombie.x,
+                        y: zombie.y,
+                        radius: 0,
+                        maxRadius: 50,
+                        life: 1,
+                        particles: []
+                    });
+                    return false;
+                }
+                return true;
+            });
+            
+            skeletons = skeletons.filter(skeleton => {
+                if (isInsideBase(skeleton.x, skeleton.y)) {
+                     explosions.push({
+                        x: skeleton.x,
+                        y: skeleton.y,
+                        radius: 0,
+                        maxRadius: 50,
+                        life: 1,
+                        particles: []
+                    });
+                    return false;
+                }
+                return true;
+            });
+
+            checkCollisions();
+
+            drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+            drawZombies();
+            drawSkeletons();
+            drawBullets();
+            drawMissiles();
+            drawExplosions();
+            drawChests();
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            resizeCanvas();
+            gameUI.style.display = 'flex';
+            startMenu.style.display = 'flex';
+            highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
+            startHighScoreSpan.textContent = `High Score: ${highScore}`;
+            updateWeaponDisplay();
+            // Draw character variants on start screen
+            drawPlayerFrame(ctx1, char1Canvas.width / 2, char1Canvas.height / 2, 1, 0);
+            drawPlayerFrame(ctx2, char2Canvas.width / 2, char2Canvas.height / 2, 1, 1);
+            drawPlayerFrame(ctx3, char3Canvas.width / 2, char3Canvas.height / 2, 1, 2);
+        };
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = true;
+            }
+            if (key === ' ') {
+                shoot(mouseX, mouseY);
+            }
+            if (key === '1') {
+                currentWeapon = 'pistol';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (key === '2') {
+                currentWeapon = 'shotgun';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (key === '3') {
+                currentWeapon = 'bazooka';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (key === '4') {
+                currentWeapon = 'missile';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            const key = e.key;
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = false;
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            mouseMoved = true;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouseMoved = false;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            shoot(mouseX, mouseY);
+        });
+
+        char1Button.addEventListener('click', async () => {
+            await audioManager.init();
+            audioManager.playSound('buttonClick');
+            player.variant = 0;
+            startGame();
+        });
+        char2Button.addEventListener('click', async () => {
+            await audioManager.init();
+            audioManager.playSound('buttonClick');
+            player.variant = 1;
+            startGame();
+        });
+        char3Button.addEventListener('click', async () => {
+            await audioManager.init();
+            audioManager.playSound('buttonClick');
+            player.variant = 2;
+            startGame();
+        });
+        restartButton.addEventListener('click', async () => {
+            await audioManager.init();
+            audioManager.playSound('buttonClick');
+            audioManager.stopBackgroundMusic();
+            highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
+            startHighScoreSpan.textContent = `High Score: ${highScore}`;
+            gameUI.style.display = 'flex';
+            startMenu.style.display = 'flex';
+            gameOverScreen.style.display = 'none';
+        });
+
+    </script>
+</body>
+</html>
