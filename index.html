@@ -149,6 +149,16 @@
             z-index: 5;
         }
 
+        #health-display {
+            position: absolute;
+            top: 90px;
+            right: 10px;
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            z-index: 5;
+            text-shadow: 1px 1px #000;
+            line-height: 1;
+        }
+
 
         #character-selection {
             display: flex;
@@ -173,6 +183,37 @@
         .character-option:hover {
             border-color: #fff;
         }
+
+        /* Custom crosshair cursor */
+        canvas {
+            cursor: crosshair;
+        }
+
+        /* Alternative: Custom SVG crosshair cursor */
+        .custom-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="none" stroke="%23ffffff" stroke-width="2"><path d="M16 4v8M16 20v8M4 16h8M20 16h8"/><circle cx="16" cy="16" r="3" fill="none" stroke="%23ff0000" stroke-width="1"/></svg>') 16 16, crosshair;
+        }
+
+        /* Weapon-specific crosshairs */
+        .pistol-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M10 2v6M10 12v6M2 10h6M12 10h6"/><path stroke="%23ffff00" stroke-width="1" d="M10 2v6M10 12v6M2 10h6M12 10h6"/><circle cx="10" cy="10" r="1.5" fill="none" stroke="%23ff0000" stroke-width="1"/></g></svg>') 10 10, crosshair;
+        }
+
+        .shotgun-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><g fill="none"><path stroke="%23000000" stroke-width="3" d="M14 4v8M14 16v8M4 14h8M16 14h8"/><path stroke="%23ff8800" stroke-width="1" d="M14 4v8M14 16v8M4 14h8M16 14h8"/><circle cx="14" cy="14" r="6" fill="none" stroke="%23ff4400" stroke-width="1" stroke-dasharray="2,2"/><circle cx="14" cy="14" r="2" fill="none" stroke="%23ff0000" stroke-width="1"/></g></svg>') 14 14, crosshair;
+        }
+
+        .fragGrenade-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M15 4v9M15 17v9M4 15h9M17 15h9"/><path stroke="%23ff6600" stroke-width="1" d="M15 4v9M15 17v9M4 15h9M17 15h9"/><circle cx="15" cy="15" r="7" fill="none" stroke="%23ff3300" stroke-width="1" stroke-dasharray="3,1"/><circle cx="15" cy="15" r="3" fill="none" stroke="%23ffff00" stroke-width="1"/></g></svg>') 15 15, crosshair;
+        }
+
+        .nuke-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><g fill="none"><path stroke="%23000000" stroke-width="4" d="M18 2v14M18 20v14M2 18h14M20 18h14"/><path stroke="%23ff0000" stroke-width="3" d="M18 2v14M18 20v14M2 18h14M20 18h14"/><circle cx="18" cy="18" r="12" fill="none" stroke="%23ff0000" stroke-width="3"/><circle cx="18" cy="18" r="8" fill="none" stroke="%23ffff00" stroke-width="2"/><circle cx="18" cy="18" r="4" fill="none" stroke="%23ffffff" stroke-width="1"/></g></svg>') 18 18, crosshair;
+        }
+
+        .missile-crosshair {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M13 3v8M13 15v8M3 13h8M15 13h8"/><path stroke="%2300ccff" stroke-width="1" d="M13 3v8M13 15v8M3 13h8M15 13h8"/><circle cx="13" cy="13" r="5" fill="none" stroke="%23ff0000" stroke-width="1" stroke-dasharray="1,1"/><path stroke="%2300ffff" stroke-width="1" d="M13 8l2 2M13 8l-2 2M13 18l2-2M13 18l-2-2M8 13l2 2M8 13l2-2M18 13l-2 2M18 13l-2-2"/></g></svg>') 13 13, crosshair;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +222,7 @@
         <div id="highScoreDisplay">High Score: 0</div>
         <div id="weapon-display">Weapon: Pistol</div>
         <div id="ammo-display">Ammo: Inf</div>
+        <div id="health-display">❤️❤️❤️</div>
         <canvas id="gameCanvas"></canvas>
         <div id="game-ui">
             <div id="start-menu">
@@ -224,6 +266,7 @@
         const highScoreDisplay = document.getElementById('highScoreDisplay');
         const weaponDisplay = document.getElementById('weapon-display');
         const ammoDisplay = document.getElementById('ammo-display');
+        const healthDisplay = document.getElementById('health-display');
         const gameUI = document.getElementById('game-ui');
         const startMenu = document.getElementById('start-menu');
         const gameOverScreen = document.getElementById('game-over-screen');
@@ -244,6 +287,31 @@
         let isGameOver = true;
         let score = 0;
         let highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
+        let playerHealth = 3;
+        const maxHealth = 3;
+        let invincibilityFrames = 0;
+        const invincibilityDuration = 1000; // 1 second of invincibility
+
+        // Power-up system
+        let activePowerUps = {
+            speedBoost: 0,
+            damageMultiplier: 0,
+            shield: 0,
+            multiShot: 0,
+            rapidFire: 0
+        };
+
+        // Loot types and probabilities
+        const lootTypes = {
+            AMMO: 'ammo',
+            HEALTH: 'health',
+            SCORE_BONUS: 'scoreBonus',
+            SPEED_BOOST: 'speedBoost',
+            DAMAGE_MULTIPLIER: 'damageMultiplier',
+            SHIELD: 'shield',
+            MULTI_SHOT: 'multiShot',
+            RAPID_FIRE: 'rapidFire'
+        };
         let animationId;
         
         let mouseX = 0;
@@ -275,13 +343,15 @@
         let ammo = {
             pistol: Infinity,
             shotgun: 10,
-            bazooka: 1,
+            fragGrenade: 5,
+            nuke: 1,
             missile: 1
         };
         const maxAmmo = {
             pistol: Infinity,
             shotgun: 10,
-            bazooka: 1,
+            fragGrenade: 5,
+            nuke: 1,
             missile: 1
         };
 
@@ -301,8 +371,20 @@
         let playerBullets = [];
         let enemyBullets = [];
         let missiles = [];
-        let explosions = []; 
+        let explosions = [];
         let chests = [];
+        let muzzleFlashes = [];
+        let bloodSplatters = [];
+        let damageNumbers = [];
+        let fragments = [];
+
+        // Screen shake system
+        let screenShake = {
+            intensity: 0,
+            duration: 0,
+            x: 0,
+            y: 0
+        };
         
         let lastZombieSpawn = 0;
         const ZOMBIE_SPAWN_INTERVAL = 1000;
@@ -349,7 +431,8 @@
                 this.sounds = {
                     pistol: this.createGunSound(200, 0.1, 'saw'),
                     shotgun: this.createGunSound(150, 0.15, 'square'),
-                    bazooka: this.createExplosionSound(80, 0.3),
+                    fragGrenade: this.createFragGrenadeSound(),
+                    nuke: this.createExplosionSound(80, 0.3),
                     missile: this.createMissileSound(),
                     enemyDeath: this.createDeathSound(),
                     playerHit: this.createHitSound(),
@@ -413,6 +496,43 @@
                     filterNode.frequency.exponentialRampToValueAtTime(frequency * 0.1, this.audioContext.currentTime + duration);
 
                     gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.5, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                    noiseSource.start(this.audioContext.currentTime);
+                    noiseSource.stop(this.audioContext.currentTime + duration);
+                };
+            }
+
+            createFragGrenadeSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    // Create a shorter, more aggressive explosion sound for frag grenade
+                    const duration = 0.2;
+                    const bufferSize = this.audioContext.sampleRate * duration;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+
+                    // Mix noise with a sharp attack
+                    for (let i = 0; i < bufferSize; i++) {
+                        const noise = Math.random() * 2 - 1;
+                        const envelope = 1 - (i / bufferSize); // Quick decay
+                        output[i] = noise * envelope;
+                    }
+
+                    const noiseSource = this.audioContext.createBufferSource();
+                    const filterNode = this.audioContext.createBiquadFilter();
+                    const gainNode = this.audioContext.createGain();
+
+                    noiseSource.buffer = buffer;
+                    noiseSource.connect(filterNode);
+                    filterNode.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+
+                    filterNode.type = 'highpass';
+                    filterNode.frequency.setValueAtTime(300, this.audioContext.currentTime);
+
+                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.4, this.audioContext.currentTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
 
                     noiseSource.start(this.audioContext.currentTime);
@@ -561,32 +681,133 @@
             startBackgroundMusic() {
                 if (!this.enabled || !this.audioContext) return;
 
-                // Simple ambient background tone
-                const oscillator1 = this.audioContext.createOscillator();
-                const oscillator2 = this.audioContext.createOscillator();
+                // Option 1: Spooky Horror Ambient
+                this.createSpookyAmbient();
+
+                // Option 2: Dark Electronic Pulse (uncomment to try)
+                // this.createDarkPulse();
+
+                // Option 3: Tense Action Music (uncomment to try)
+                // this.createActionMusic();
+
+                // Option 4: Silent (no music)
+                // this.currentMusic = null;
+            }
+
+            createSpookyAmbient() {
+                // Create a spooky, horror-game style ambient track
+                const lowDrone = this.audioContext.createOscillator();
+                const midTone = this.audioContext.createOscillator();
+                const filter = this.audioContext.createBiquadFilter();
                 const gainNode = this.audioContext.createGain();
 
-                oscillator1.connect(gainNode);
-                oscillator2.connect(gainNode);
+                lowDrone.connect(filter);
+                midTone.connect(filter);
+                filter.connect(gainNode);
                 gainNode.connect(this.audioContext.destination);
 
-                oscillator1.type = 'sine';
-                oscillator2.type = 'sine';
-                oscillator1.frequency.setValueAtTime(110, this.audioContext.currentTime);
-                oscillator2.frequency.setValueAtTime(165, this.audioContext.currentTime);
+                lowDrone.type = 'sawtooth';
+                midTone.type = 'triangle';
+                lowDrone.frequency.setValueAtTime(55, this.audioContext.currentTime); // Low A
+                midTone.frequency.setValueAtTime(82.5, this.audioContext.currentTime); // E
 
-                gainNode.gain.setValueAtTime(this.musicVolume * this.masterVolume * 0.05, this.audioContext.currentTime);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200, this.audioContext.currentTime);
+                filter.Q.setValueAtTime(5, this.audioContext.currentTime);
 
-                oscillator1.start();
-                oscillator2.start();
+                gainNode.gain.setValueAtTime(this.musicVolume * this.masterVolume * 0.03, this.audioContext.currentTime);
 
-                this.currentMusic = { oscillator1, oscillator2, gainNode };
+                lowDrone.start();
+                midTone.start();
+
+                this.currentMusic = { lowDrone, midTone, gainNode };
+            }
+
+            createDarkPulse() {
+                // Pulsing electronic dark music
+                const bass = this.audioContext.createOscillator();
+                const pulse = this.audioContext.createOscillator();
+                const bassGain = this.audioContext.createGain();
+                const pulseGain = this.audioContext.createGain();
+                const mainGain = this.audioContext.createGain();
+
+                bass.connect(bassGain);
+                pulse.connect(pulseGain);
+                bassGain.connect(mainGain);
+                pulseGain.connect(mainGain);
+                mainGain.connect(this.audioContext.destination);
+
+                bass.type = 'square';
+                pulse.type = 'triangle';
+                bass.frequency.setValueAtTime(65, this.audioContext.currentTime); // Low C
+                pulse.frequency.setValueAtTime(130, this.audioContext.currentTime); // High C
+
+                // Create pulsing effect
+                const now = this.audioContext.currentTime;
+                pulseGain.gain.setValueAtTime(0, now);
+                for (let i = 0; i < 60; i++) { // 60 seconds of pulses
+                    const time = now + i * 0.5; // Every 500ms
+                    pulseGain.gain.setValueAtTime(0, time);
+                    pulseGain.gain.linearRampToValueAtTime(0.1, time + 0.1);
+                    pulseGain.gain.linearRampToValueAtTime(0, time + 0.3);
+                }
+
+                bassGain.gain.setValueAtTime(this.musicVolume * this.masterVolume * 0.02, this.audioContext.currentTime);
+                mainGain.gain.setValueAtTime(1, this.audioContext.currentTime);
+
+                bass.start();
+                pulse.start();
+
+                this.currentMusic = { bass, pulse, bassGain, pulseGain, mainGain };
+            }
+
+            createActionMusic() {
+                // Fast-paced action music
+                const bass = this.audioContext.createOscillator();
+                const melody = this.audioContext.createOscillator();
+                const filter = this.audioContext.createBiquadFilter();
+                const gainNode = this.audioContext.createGain();
+
+                bass.connect(gainNode);
+                melody.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                bass.type = 'square';
+                melody.type = 'sawtooth';
+
+                // Simple bassline pattern
+                bass.frequency.setValueAtTime(110, this.audioContext.currentTime);
+
+                // Melody with some variation
+                melody.frequency.setValueAtTime(220, this.audioContext.currentTime);
+                melody.frequency.setValueAtTime(330, this.audioContext.currentTime + 0.5);
+                melody.frequency.setValueAtTime(275, this.audioContext.currentTime + 1.0);
+                melody.frequency.setValueAtTime(220, this.audioContext.currentTime + 1.5);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.audioContext.currentTime);
+
+                gainNode.gain.setValueAtTime(this.musicVolume * this.masterVolume * 0.04, this.audioContext.currentTime);
+
+                bass.start();
+                melody.start();
+
+                this.currentMusic = { bass, melody, gainNode };
             }
 
             stopBackgroundMusic() {
                 if (this.currentMusic) {
-                    this.currentMusic.oscillator1.stop();
-                    this.currentMusic.oscillator2.stop();
+                    // Stop all oscillators in the current music object
+                    Object.keys(this.currentMusic).forEach(key => {
+                        if (this.currentMusic[key] && typeof this.currentMusic[key].stop === 'function') {
+                            try {
+                                this.currentMusic[key].stop();
+                            } catch (e) {
+                                // Ignore errors if oscillator already stopped
+                            }
+                        }
+                    });
                     this.currentMusic = null;
                 }
             }
@@ -739,7 +960,12 @@
         function updatePlayerPosition() {
             let dx = 0;
             let dy = 0;
-            const currentSpeed = player.speed;
+            let currentSpeed = player.speed;
+
+            // Apply speed boost if active
+            if (activePowerUps.speedBoost > 0) {
+                currentSpeed *= 1.5; // 50% speed increase
+            }
 
             if (keys.ArrowUp || keys.w) dy = -currentSpeed;
             if (keys.ArrowDown || keys.s) dy = currentSpeed;
@@ -1082,9 +1308,336 @@
             ctx.fillRect(x + size, y + 8 * size - legOffset, 2 * size, 6 * size);
         }
 
+        function createMuzzleFlash(x, y, angle, weaponType) {
+            const flashSize = {
+                pistol: 20,
+                shotgun: 35,
+                fragGrenade: 40,
+                nuke: 60,
+                missile: 30
+            };
+
+            const flashDuration = {
+                pistol: 80,
+                shotgun: 120,
+                fragGrenade: 150,
+                nuke: 250,
+                missile: 150
+            };
+
+            const flashColor = {
+                pistol: '#ffff99',
+                shotgun: '#ffaa00',
+                fragGrenade: '#ff6600',
+                nuke: '#ff0000',
+                missile: '#99ccff'
+            };
+
+            // Create multiple flash particles for more realistic effect
+            const particleCount = weaponType === 'shotgun' ? 8 : 5;
+
+            for (let i = 0; i < particleCount; i++) {
+                const spread = weaponType === 'shotgun' ? 0.3 : 0.2;
+                const particleAngle = angle + (Math.random() - 0.5) * spread;
+                const distance = Math.random() * flashSize[weaponType] + 10;
+
+                muzzleFlashes.push({
+                    x: x + Math.cos(particleAngle) * distance * 0.3,
+                    y: y + Math.sin(particleAngle) * distance * 0.3,
+                    radius: Math.random() * flashSize[weaponType] * 0.5 + flashSize[weaponType] * 0.3,
+                    maxRadius: flashSize[weaponType],
+                    life: flashDuration[weaponType],
+                    maxLife: flashDuration[weaponType],
+                    color: flashColor[weaponType],
+                    angle: particleAngle,
+                    speed: Math.random() * 2 + 1
+                });
+            }
+
+            // Add a bright center flash
+            muzzleFlashes.push({
+                x: x + Math.cos(angle) * 15,
+                y: y + Math.sin(angle) * 15,
+                radius: flashSize[weaponType] * 0.7,
+                maxRadius: flashSize[weaponType],
+                life: flashDuration[weaponType],
+                maxLife: flashDuration[weaponType],
+                color: '#ffffff',
+                angle: angle,
+                speed: 0
+            });
+        }
+
+        function updateMuzzleFlashes() {
+            muzzleFlashes.forEach(flash => {
+                flash.life -= 16; // Decrease by 16ms per frame (assuming 60fps)
+                flash.radius *= 0.95; // Shrink slightly
+
+                // Move flash particles outward slightly
+                flash.x += Math.cos(flash.angle) * flash.speed;
+                flash.y += Math.sin(flash.angle) * flash.speed;
+                flash.speed *= 0.9; // Slow down
+            });
+
+            // Remove expired flashes
+            muzzleFlashes = muzzleFlashes.filter(flash => flash.life > 0);
+        }
+
+        function drawMuzzleFlashes() {
+            muzzleFlashes.forEach(flash => {
+                const alpha = flash.life / flash.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = flash.color;
+                ctx.fillStyle = flash.color;
+                ctx.beginPath();
+                ctx.arc(flash.x, flash.y, flash.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function createBloodSplatter(x, y, bulletAngle, isHeadshot = false) {
+            const particleCount = isHeadshot ? 12 : 8;
+            const intensity = isHeadshot ? 1.5 : 1.0;
+
+            for (let i = 0; i < particleCount; i++) {
+                const spread = Math.PI / 3; // 60 degree spread
+                const angle = bulletAngle + (Math.random() - 0.5) * spread;
+                const speed = Math.random() * 4 * intensity + 2 * intensity;
+                const size = Math.random() * 4 + 2;
+
+                // Blood colors - mix of reds and darker reds
+                const bloodColors = ['#cc0000', '#990000', '#660000', '#aa0000', '#880000'];
+                const color = bloodColors[Math.floor(Math.random() * bloodColors.length)];
+
+                bloodSplatters.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    radius: size,
+                    originalRadius: size,
+                    life: 300 + Math.random() * 200, // 300-500ms life
+                    maxLife: 300 + Math.random() * 200,
+                    color: color,
+                    gravity: 0.1,
+                    bounce: 0.3,
+                    type: 'blood'
+                });
+            }
+        }
+
+        function createDustSplatter(x, y, bulletAngle, isHeadshot = false) {
+            const particleCount = isHeadshot ? 12 : 8;
+            const intensity = isHeadshot ? 1.5 : 1.0;
+
+            for (let i = 0; i < particleCount; i++) {
+                const spread = Math.PI / 3; // 60 degree spread
+                const angle = bulletAngle + (Math.random() - 0.5) * spread;
+                const speed = Math.random() * 3 * intensity + 1.5 * intensity;
+                const size = Math.random() * 3 + 1.5;
+
+                // Dust/bone colors - grays, whites, and off-whites
+                const dustColors = ['#cccccc', '#ffffff', '#dddddd', '#aaaaaa', '#e0e0e0', '#f5f5f5'];
+                const color = dustColors[Math.floor(Math.random() * dustColors.length)];
+
+                bloodSplatters.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    radius: size,
+                    originalRadius: size,
+                    life: 400 + Math.random() * 300, // 400-700ms life (dust lingers longer)
+                    maxLife: 400 + Math.random() * 300,
+                    color: color,
+                    gravity: 0.05, // Less gravity for dust
+                    bounce: 0.1, // Less bouncy
+                    type: 'dust'
+                });
+            }
+        }
+
+        function updateBloodSplatters() {
+            bloodSplatters.forEach(splatter => {
+                splatter.life -= 16; // Decrease by 16ms per frame
+
+                // Apply velocity
+                splatter.x += splatter.dx;
+                splatter.y += splatter.dy;
+
+                // Apply gravity
+                splatter.dy += splatter.gravity;
+
+                // Apply air resistance
+                splatter.dx *= 0.98;
+                splatter.dy *= 0.98;
+
+                // Bounce off walls
+                if (checkWallCollision(splatter.x, splatter.y, splatter.radius)) {
+                    splatter.dx *= -splatter.bounce;
+                    splatter.dy *= -splatter.bounce;
+                }
+
+                // Shrink over time
+                const ageRatio = 1 - (splatter.life / splatter.maxLife);
+                splatter.radius = splatter.originalRadius * (1 - ageRatio * 0.5);
+            });
+
+            // Remove expired splatters
+            bloodSplatters = bloodSplatters.filter(splatter => splatter.life > 0);
+        }
+
+        function drawBloodSplatters() {
+            bloodSplatters.forEach(splatter => {
+                const alpha = splatter.life / splatter.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = splatter.color;
+                ctx.beginPath();
+                ctx.arc(splatter.x, splatter.y, splatter.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function addScreenShake(intensity, duration) {
+            // Only add shake if new shake is stronger or current is almost done
+            if (intensity > screenShake.intensity || screenShake.duration < 50) {
+                screenShake.intensity = intensity;
+                screenShake.duration = duration;
+            }
+        }
+
+        function updateScreenShake() {
+            if (screenShake.duration > 0) {
+                screenShake.duration -= 16; // Decrease by 16ms per frame
+
+                // Calculate shake offset
+                const shakeAmount = screenShake.intensity * (screenShake.duration / 300); // Fade out over time
+                screenShake.x = (Math.random() - 0.5) * shakeAmount * 2;
+                screenShake.y = (Math.random() - 0.5) * shakeAmount * 2;
+
+                // Apply shake by translating canvas context
+                ctx.save();
+                ctx.translate(screenShake.x, screenShake.y);
+            } else {
+                screenShake.intensity = 0;
+                screenShake.x = 0;
+                screenShake.y = 0;
+            }
+        }
+
+        function endScreenShake() {
+            if (screenShake.duration > 0) {
+                ctx.restore(); // Restore the canvas translation
+            }
+        }
+
+        function createDamageNumber(x, y, damage, isHeadshot = false, enemyType = 'zombie') {
+            let color, text;
+
+            if (enemyType === 'loot') {
+                // Special colors for loot text
+                if (damage.includes('HEALTH')) {
+                    color = '#00ff00'; // Green for health
+                } else if (damage.includes('AMMO')) {
+                    color = '#ffaa00'; // Orange for ammo
+                } else if (damage.includes('SPEED')) {
+                    color = '#00ccff'; // Cyan for speed
+                } else if (damage.includes('DAMAGE')) {
+                    color = '#ff4444'; // Red for damage multiplier
+                } else if (damage.includes('SHIELD')) {
+                    color = '#ffff00'; // Yellow for shield
+                } else if (damage.includes('MULTI') || damage.includes('RAPID')) {
+                    color = '#ff00ff'; // Magenta for special weapons
+                } else {
+                    color = '#ffffff'; // White for score bonus
+                }
+                text = damage;
+            } else if (isHeadshot) {
+                if (enemyType === 'zombie') {
+                    color = '#ffff00'; // Bright yellow for zombie headshots
+                    text = `+${damage}`;
+                } else {
+                    color = '#ffffff'; // White for skeleton headshots
+                    text = `+${damage}`;
+                }
+            } else {
+                if (enemyType === 'zombie') {
+                    color = '#ffffff'; // White for zombie body shots
+                    text = `+${damage}`;
+                } else {
+                    color = '#cccccc'; // Gray for skeleton body shots
+                    text = `+${damage}`;
+                }
+            }
+
+            damageNumbers.push({
+                x: x + (Math.random() - 0.5) * 20, // Slight random offset
+                y: y,
+                text: text,
+                color: color,
+                life: 1000, // 1 second lifespan
+                maxLife: 1000,
+                fontSize: isHeadshot ? 18 : 14,
+                velocity: {
+                    x: (Math.random() - 0.5) * 2,
+                    y: -2 - Math.random() * 2 // Float upward
+                }
+            });
+        }
+
+        function updateDamageNumbers() {
+            damageNumbers.forEach(number => {
+                number.life -= 16; // Decrease by 16ms per frame
+
+                // Move the number
+                number.x += number.velocity.x;
+                number.y += number.velocity.y;
+
+                // Apply slight gravity and air resistance
+                number.velocity.y += 0.05;
+                number.velocity.x *= 0.98;
+
+                // Increase font size slightly at first, then shrink
+                const ageRatio = 1 - (number.life / number.maxLife);
+                if (ageRatio < 0.2) {
+                    number.fontSize += 0.3; // Grow in first 20% of life
+                } else {
+                    number.fontSize *= 0.99; // Shrink after that
+                }
+            });
+
+            // Remove expired numbers
+            damageNumbers = damageNumbers.filter(number => number.life > 0);
+        }
+
+        function drawDamageNumbers() {
+            damageNumbers.forEach(number => {
+                const alpha = number.life / number.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = number.color;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.font = `bold ${number.fontSize}px "Press Start 2P"`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Draw text outline for better visibility
+                ctx.strokeText(number.text, number.x, number.y);
+                ctx.fillText(number.text, number.x, number.y);
+
+                ctx.restore();
+            });
+        }
+
         function shoot(targetX, targetY) {
             if (isGameOver) return;
-            
+
             let dx, dy;
             if (mouseMoved) {
                 dx = mouseX - player.x;
@@ -1104,6 +1657,7 @@
                 if (ammo.pistol <= 0) return;
                 ammo.pistol--;
                 audioManager.playSound('pistol');
+                createMuzzleFlash(player.x, player.y, angle, 'pistol');
                 const speed = 10;
                 playerBullets.push({
                     x: player.x,
@@ -1117,6 +1671,8 @@
                 if (ammo.shotgun <= 0) return;
                 ammo.shotgun--;
                 audioManager.playSound('shotgun');
+                createMuzzleFlash(player.x, player.y, angle, 'shotgun');
+                addScreenShake(3, 100); // Subtle shake for shotgun recoil
                 const speed = 8;
                 const spreadAngle = Math.PI / 16;
                 for (let i = -2; i <= 2; i++) {
@@ -1130,10 +1686,33 @@
                         color: '#ffdd4d'
                     });
                 }
-            } else if (currentWeapon === 'bazooka') {
-                if (ammo.bazooka <= 0) return;
-                ammo.bazooka--;
-                audioManager.playSound('bazooka');
+            } else if (currentWeapon === 'fragGrenade') {
+                if (ammo.fragGrenade <= 0) return;
+                ammo.fragGrenade--;
+                audioManager.playSound('fragGrenade');
+                createMuzzleFlash(player.x, player.y, angle, 'fragGrenade');
+                addScreenShake(8, 200); // Medium shake for frag grenade
+
+                // Create 20 lethal fragments in all directions
+                const speed = 12;
+                for (let i = 0; i < 20; i++) {
+                    const fragmentAngle = (Math.PI * 2 * i) / 20; // Evenly distributed
+                    fragments.push({
+                        x: player.x,
+                        y: player.y,
+                        dx: Math.cos(fragmentAngle) * speed,
+                        dy: Math.sin(fragmentAngle) * speed,
+                        radius: 2,
+                        color: '#ff6666',
+                        life: 60 // Fragments last 1 second at 60fps
+                    });
+                }
+            } else if (currentWeapon === 'nuke') {
+                if (ammo.nuke <= 0) return;
+                ammo.nuke--;
+                audioManager.playSound('nuke');
+                createMuzzleFlash(player.x, player.y, angle, 'nuke');
+                addScreenShake(15, 400); // Strong shake for nuke
                 explosions.push({
                     x: targetX,
                     y: targetY,
@@ -1151,6 +1730,7 @@
                 if (ammo.missile <= 0) return;
                 ammo.missile--;
                 audioManager.playSound('missile');
+                createMuzzleFlash(player.x, player.y, angle, 'missile');
                 if (zombies.length > 0) {
                     let targetZombie = null;
                     let minDistance = Infinity;
@@ -1224,6 +1804,28 @@
                 ctx.beginPath();
                 ctx.arc(missile.x, missile.y, missile.radius, 0, Math.PI * 2);
                 ctx.fillStyle = missile.color;
+                ctx.fill();
+            });
+        }
+
+        function updateFragments() {
+            fragments.forEach(fragment => {
+                fragment.x += fragment.dx;
+                fragment.y += fragment.dy;
+                fragment.life--;
+            });
+            fragments = fragments.filter(fragment =>
+                fragment.life > 0 &&
+                fragment.x > -10 && fragment.x < canvas.width + 10 &&
+                fragment.y > -10 && fragment.y < canvas.height + 10
+            );
+        }
+
+        function drawFragments() {
+            fragments.forEach(fragment => {
+                ctx.beginPath();
+                ctx.arc(fragment.x, fragment.y, fragment.radius, 0, Math.PI * 2);
+                ctx.fillStyle = fragment.color;
                 ctx.fill();
             });
         }
@@ -1332,18 +1934,32 @@
 
                     if (headshotX && headshotY) {
                          setTimeout(() => {
+                            const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
+                            createBloodSplatter(zombie.x, zombie.y - 10, bulletAngle, true);
+                            createDamageNumber(zombie.x, zombie.y - 20, 30, true, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            score += 30; // Headshot bonus
+                            let scoreGain = 30; // Headshot bonus
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
                             scoreDisplay.textContent = `Score: ${score}`;
                         }, 0);
                     } else if (distance < bullet.radius + 12) {
                         setTimeout(() => {
+                            const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
+                            createBloodSplatter(zombie.x, zombie.y, bulletAngle, false);
+                            createDamageNumber(zombie.x, zombie.y - 10, 10, false, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            score += 10;
+                            let scoreGain = 10;
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
                             scoreDisplay.textContent = `Score: ${score}`;
                         }, 0);
                     }
@@ -1358,18 +1974,32 @@
 
                     if (headshotX && headshotY) {
                          setTimeout(() => {
+                            const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
+                            createDustSplatter(skeleton.x, skeleton.y - 10, bulletAngle, true);
+                            createDamageNumber(skeleton.x, skeleton.y - 20, 50, true, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            score += 50; // Headshot bonus
+                            let scoreGain = 50; // Headshot bonus
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
                             scoreDisplay.textContent = `Score: ${score}`;
                         }, 0);
                     } else if (distance < bullet.radius + skeleton.size) {
                          setTimeout(() => {
+                            const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
+                            createDustSplatter(skeleton.x, skeleton.y, bulletAngle, false);
+                            createDamageNumber(skeleton.x, skeleton.y - 10, 20, false, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            score += 20;
+                            let scoreGain = 20;
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
                             scoreDisplay.textContent = `Score: ${score}`;
                         }, 0);
                     }
@@ -1389,6 +2019,7 @@
                     const distance = Math.hypot(missile.x - zombie.x, missile.y - (zombie.y - 18));
                     if (distance < missile.radius + 12) {
                         missile.hit = true;
+                        addScreenShake(10, 250); // Medium shake for missile
                         explosions.push({
                             x: missile.x,
                             y: missile.y,
@@ -1398,9 +2029,15 @@
                             particles: []
                         });
                         setTimeout(() => {
+                            createBloodSplatter(missile.x, missile.y, Math.random() * Math.PI * 2, false);
+                            createDamageNumber(zombie.x, zombie.y - 10, 20, false, 'zombie');
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            score += 20;
+                            let scoreGain = 20;
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
                             scoreDisplay.textContent = `Score: ${score}`;
                         }, 0);
                     }
@@ -1412,15 +2049,13 @@
             zombies.forEach(zombie => {
                 const distance = Math.hypot(player.x - zombie.x, player.y - zombie.y);
                 if (distance < player.radius + zombie.size) {
-                    audioManager.playSound('playerHit');
-                    endGame();
+                    takeDamage();
                 }
             });
             skeletons.forEach(skeleton => {
                  const distance = Math.hypot(player.x - skeleton.x, player.y - skeleton.y);
                  if (distance < player.radius + skeleton.size) {
-                    audioManager.playSound('playerHit');
-                    endGame();
+                    takeDamage();
                  }
             });
 
@@ -1428,8 +2063,7 @@
             enemyBullets.forEach(bullet => {
                 const distance = Math.hypot(player.x - bullet.x, player.y - bullet.y);
                  if (distance < player.radius + bullet.radius) {
-                    audioManager.playSound('playerHit');
-                    endGame();
+                    takeDamage();
                  }
             });
             
@@ -1437,11 +2071,56 @@
             chests.forEach((chest, cIndex) => {
                 const distance = Math.hypot(player.x - chest.x, player.y - chest.y);
                 if (distance < player.radius + chest.size / 2) {
-                    audioManager.playSound('chestPickup');
-                    ammo = { ...maxAmmo };
+                    const lootType = rollLootDrop();
+                    applyLoot(lootType);
                     updateAmmoDisplay();
                     chests.splice(cIndex, 1);
                 }
+            });
+
+            // Fragment vs enemies collision
+            fragments.forEach((fragment, fIndex) => {
+                // Check against zombies
+                zombies.forEach((zombie, zIndex) => {
+                    const distance = Math.hypot(fragment.x - zombie.x, fragment.y - zombie.y);
+                    if (distance < fragment.radius + 12) {
+                        setTimeout(() => {
+                            const fragmentAngle = Math.atan2(fragment.dy, fragment.dx);
+                            createBloodSplatter(zombie.x, zombie.y, fragmentAngle, false);
+                            createDamageNumber(zombie.x, zombie.y - 10, 15, false, 'zombie');
+                            fragments.splice(fIndex, 1);
+                            zombies.splice(zIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            let scoreGain = 15;
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    }
+                });
+
+                // Check against skeletons
+                skeletons.forEach((skeleton, sIndex) => {
+                    const distance = Math.hypot(fragment.x - skeleton.x, fragment.y - skeleton.y);
+                    if (distance < fragment.radius + 12) {
+                        setTimeout(() => {
+                            const fragmentAngle = Math.atan2(fragment.dy, fragment.dx);
+                            createBloodSplatter(skeleton.x, skeleton.y, fragmentAngle, false, 'dust');
+                            createDamageNumber(skeleton.x, skeleton.y - 10, 25, false, 'skeleton');
+                            fragments.splice(fIndex, 1);
+                            skeletons.splice(sIndex, 1);
+                            audioManager.playSound('enemyDeath');
+                            let scoreGain = 25;
+                            if (activePowerUps.damageMultiplier > 0) {
+                                scoreGain *= 2;
+                            }
+                            score += scoreGain;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                        }, 0);
+                    }
+                });
             });
         }
 
@@ -1470,6 +2149,16 @@
 
             isGameOver = false;
             score = 0;
+            playerHealth = maxHealth;
+            invincibilityFrames = 0;
+            // Reset all power-ups
+            activePowerUps = {
+                speedBoost: 0,
+                damageMultiplier: 0,
+                shield: 0,
+                multiShot: 0,
+                rapidFire: 0
+            };
             zombies = [];
             skeletons = [];
             playerBullets = [];
@@ -1477,6 +2166,10 @@
             explosions = [];
             missiles = [];
             chests = [];
+            muzzleFlashes = [];
+            bloodSplatters = [];
+            damageNumbers = [];
+            screenShake = { intensity: 0, duration: 0, x: 0, y: 0 };
             ammo = { ...maxAmmo };
             player.x = canvas.width / 2;
             player.y = canvas.height / 2;
@@ -1486,27 +2179,234 @@
             gameOverScreen.style.display = 'none';
             startMenu.style.display = 'none';
             updateAmmoDisplay();
+            updateHealthDisplay();
             gameLoop();
         }
         
+        function updateCrosshair() {
+            // Remove all crosshair classes
+            canvas.classList.remove('pistol-crosshair', 'shotgun-crosshair', 'fragGrenade-crosshair', 'nuke-crosshair', 'missile-crosshair');
+
+            // Add the appropriate crosshair class
+            if (currentWeapon === 'pistol') {
+                canvas.classList.add('pistol-crosshair');
+            } else if (currentWeapon === 'shotgun') {
+                canvas.classList.add('shotgun-crosshair');
+            } else if (currentWeapon === 'fragGrenade') {
+                canvas.classList.add('fragGrenade-crosshair');
+            } else if (currentWeapon === 'nuke') {
+                canvas.classList.add('nuke-crosshair');
+            } else if (currentWeapon === 'missile') {
+                canvas.classList.add('missile-crosshair');
+            }
+        }
+
         function updateWeaponDisplay() {
             if (currentWeapon === 'pistol') {
-                weaponDisplay.textContent = 'Weapon: Pistol';
+                weaponDisplay.textContent = 'Weapon: Pistol (1)';
             } else if (currentWeapon === 'shotgun') {
-                weaponDisplay.textContent = 'Weapon: Shotgun';
-            } else if (currentWeapon === 'bazooka') {
-                weaponDisplay.textContent = 'Weapon: Bazooka';
-            } else {
-                weaponDisplay.textContent = 'Weapon: Missile';
+                weaponDisplay.textContent = 'Weapon: Shotgun (2)';
+            } else if (currentWeapon === 'fragGrenade') {
+                weaponDisplay.textContent = 'Weapon: Frag Grenade (3)';
+            } else if (currentWeapon === 'nuke') {
+                weaponDisplay.textContent = 'Weapon: Nuke (4)';
+            } else if (currentWeapon === 'missile') {
+                weaponDisplay.textContent = 'Weapon: Missile (5)';
             }
+            updateCrosshair();
         }
         
         function updateAmmoDisplay() {
             const currentAmmo = ammo[currentWeapon];
             if (currentWeapon === 'pistol') {
-                ammoDisplay.innerHTML = `Ammo: <span style="font-size: 3em; vertical-align: middle;">&infin;</span>`;
+                ammoDisplay.textContent = `Ammo: ∞`;
             } else {
                 ammoDisplay.textContent = `Ammo: ${currentAmmo}`;
+            }
+        }
+
+        function updateHealthDisplay() {
+            let hearts = '';
+            for (let i = 0; i < maxHealth; i++) {
+                if (i < playerHealth) {
+                    hearts += '❤️';
+                } else {
+                    hearts += '🖤'; // Black heart for lost health
+                }
+            }
+            healthDisplay.textContent = hearts;
+        }
+
+        function takeDamage() {
+            if (playerHealth > 0 && invincibilityFrames <= 0) {
+                // Check if shield is active
+                if (activePowerUps.shield > 0) {
+                    // Shield absorbs the damage
+                    activePowerUps.shield = 0;
+                    createDamageNumber(player.x, player.y - 30, 'SHIELD BLOCKED!', false, 'loot');
+                    audioManager.playSound('playerHit');
+                    addScreenShake(4, 100); // Reduced shake for blocked damage
+                    invincibilityFrames = invincibilityDuration;
+                    return;
+                }
+
+                playerHealth--;
+                invincibilityFrames = invincibilityDuration;
+                updateHealthDisplay();
+                audioManager.playSound('playerHit');
+                addScreenShake(8, 200);
+
+                // Add visual feedback for taking damage
+                addPlayerDamageEffect();
+
+                // Check if player is dead
+                if (playerHealth <= 0) {
+                    endGame();
+                }
+            }
+        }
+
+        function addPlayerDamageEffect() {
+            // Create red damage indicator particles around player
+            for (let i = 0; i < 8; i++) {
+                const angle = (Math.PI * 2 / 8) * i;
+                const distance = 25;
+                bloodSplatters.push({
+                    x: player.x + Math.cos(angle) * distance,
+                    y: player.y + Math.sin(angle) * distance,
+                    dx: Math.cos(angle) * 3,
+                    dy: Math.sin(angle) * 3,
+                    radius: 3,
+                    originalRadius: 3,
+                    life: 200,
+                    maxLife: 200,
+                    color: '#ff0000',
+                    gravity: 0.05,
+                    bounce: 0.2,
+                    type: 'damage'
+                });
+            }
+        }
+
+        function getLootDropProbabilities() {
+            // Dynamic loot probabilities based on score
+            if (score < 500) {
+                // Early game: mostly ammo and health
+                return {
+                    [lootTypes.AMMO]: 60,
+                    [lootTypes.HEALTH]: 40
+                };
+            } else if (score < 1500) {
+                // Mid game: add power-ups
+                return {
+                    [lootTypes.AMMO]: 40,
+                    [lootTypes.HEALTH]: 30,
+                    [lootTypes.SCORE_BONUS]: 10,
+                    [lootTypes.SPEED_BOOST]: 10,
+                    [lootTypes.SHIELD]: 10
+                };
+            } else {
+                // Late game: more power-ups
+                return {
+                    [lootTypes.AMMO]: 25,
+                    [lootTypes.HEALTH]: 15,
+                    [lootTypes.SCORE_BONUS]: 10,
+                    [lootTypes.SPEED_BOOST]: 15,
+                    [lootTypes.DAMAGE_MULTIPLIER]: 15,
+                    [lootTypes.SHIELD]: 10,
+                    [lootTypes.MULTI_SHOT]: 5,
+                    [lootTypes.RAPID_FIRE]: 5
+                };
+            }
+        }
+
+        function rollLootDrop() {
+            const probabilities = getLootDropProbabilities();
+            const totalWeight = Object.values(probabilities).reduce((sum, weight) => sum + weight, 0);
+            let random = Math.random() * totalWeight;
+
+            for (const [lootType, weight] of Object.entries(probabilities)) {
+                random -= weight;
+                if (random <= 0) {
+                    return lootType;
+                }
+            }
+            return lootTypes.AMMO; // Fallback
+        }
+
+        function updatePowerUps() {
+            // Decrease all active power-up timers
+            Object.keys(activePowerUps).forEach(powerUp => {
+                if (activePowerUps[powerUp] > 0) {
+                    activePowerUps[powerUp] -= 16; // Decrease by 16ms per frame
+                    if (activePowerUps[powerUp] <= 0) {
+                        activePowerUps[powerUp] = 0;
+                        // Power-up expired, could add visual feedback here
+                    }
+                }
+            });
+        }
+
+        function applyLoot(lootType) {
+            switch (lootType) {
+                case lootTypes.AMMO:
+                    ammo = { ...maxAmmo };
+                    createDamageNumber(player.x, player.y - 30, 'AMMO!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.HEALTH:
+                    if (playerHealth < maxHealth) {
+                        playerHealth++;
+                        updateHealthDisplay();
+                        createDamageNumber(player.x, player.y - 30, '+HEALTH', false, 'loot');
+                        audioManager.playSound('chestPickup');
+                    } else {
+                        // Full health, give score bonus instead
+                        score += 50;
+                        createDamageNumber(player.x, player.y - 30, '+50', false, 'loot');
+                        scoreDisplay.textContent = `Score: ${score}`;
+                        audioManager.playSound('chestPickup');
+                    }
+                    break;
+
+                case lootTypes.SCORE_BONUS:
+                    const bonus = Math.random() > 0.5 ? 100 : 50;
+                    score += bonus;
+                    createDamageNumber(player.x, player.y - 30, `+${bonus}`, false, 'loot');
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.SPEED_BOOST:
+                    activePowerUps.speedBoost = 10000; // 10 seconds
+                    createDamageNumber(player.x, player.y - 30, 'SPEED!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.DAMAGE_MULTIPLIER:
+                    activePowerUps.damageMultiplier = 15000; // 15 seconds
+                    createDamageNumber(player.x, player.y - 30, '2X DAMAGE!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.SHIELD:
+                    activePowerUps.shield = 30000; // 30 seconds or until hit
+                    createDamageNumber(player.x, player.y - 30, 'SHIELD!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.MULTI_SHOT:
+                    activePowerUps.multiShot = 20000; // 20 seconds
+                    createDamageNumber(player.x, player.y - 30, 'MULTI-SHOT!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
+
+                case lootTypes.RAPID_FIRE:
+                    activePowerUps.rapidFire = 15000; // 15 seconds
+                    createDamageNumber(player.x, player.y - 30, 'RAPID FIRE!', false, 'loot');
+                    audioManager.playSound('chestPickup');
+                    break;
             }
         }
 
@@ -1514,7 +2414,18 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Apply screen shake
+            updateScreenShake();
+
             drawWalls();
+
+            // Update invincibility frames
+            if (invincibilityFrames > 0) {
+                invincibilityFrames -= 16; // Decrease by 16ms per frame
+            }
+
+            // Update power-ups
+            updatePowerUps();
 
             updatePlayerPosition();
             spawnZombie();
@@ -1524,6 +2435,10 @@
             updatePlayerBullets();
             updateEnemyBullets();
             updateMissiles();
+            updateFragments();
+            updateMuzzleFlashes();
+            updateBloodSplatters();
+            updateDamageNumbers();
             updateExplosions();
             spawnChest();
             
@@ -1560,13 +2475,33 @@
 
             checkCollisions();
 
-            drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+            // Draw player with flashing effect if invincible
+            if (invincibilityFrames > 0) {
+                // Flash every 100ms while invincible
+                if (Math.floor(invincibilityFrames / 100) % 2 === 0) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.5;
+                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+                    ctx.restore();
+                } else {
+                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+                }
+            } else {
+                drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+            }
             drawZombies();
             drawSkeletons();
             drawBullets();
             drawMissiles();
+            drawFragments();
+            drawBloodSplatters();
+            drawMuzzleFlashes();
+            drawDamageNumbers();
             drawExplosions();
             drawChests();
+
+            // End screen shake (restore canvas if shaking)
+            endScreenShake();
 
             animationId = requestAnimationFrame(gameLoop);
         }
@@ -1578,6 +2513,8 @@
             highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
             startHighScoreSpan.textContent = `High Score: ${highScore}`;
             updateWeaponDisplay();
+            updateCrosshair();
+            updateHealthDisplay();
             // Draw character variants on start screen
             drawPlayerFrame(ctx1, char1Canvas.width / 2, char1Canvas.height / 2, 1, 0);
             drawPlayerFrame(ctx2, char2Canvas.width / 2, char2Canvas.height / 2, 1, 1);
@@ -1603,11 +2540,16 @@
                 updateAmmoDisplay();
             }
             if (key === '3') {
-                currentWeapon = 'bazooka';
+                currentWeapon = 'fragGrenade';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '4') {
+                currentWeapon = 'nuke';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (key === '5') {
                 currentWeapon = 'missile';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
