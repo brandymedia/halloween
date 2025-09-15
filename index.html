@@ -887,8 +887,15 @@
         // Update instructions for mobile users
         if (isMobile) {
             const movementInstructions = document.getElementById('movement-instructions');
+            const instructions = document.getElementById('instructions');
             if (movementInstructions) {
                 movementInstructions.textContent = 'Tilt your device to move';
+            }
+            if (instructions) {
+                const shootInstructions = instructions.children[1]; // Second paragraph about shooting
+                if (shootInstructions) {
+                    shootInstructions.textContent = 'Tap anywhere on screen to shoot';
+                }
             }
         }
 
@@ -2682,6 +2689,36 @@
         
         canvas.addEventListener('mousedown', (e) => {
             shoot(mouseX, mouseY);
+        });
+
+        // Touch events for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent default touch behavior
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
+
+            // Update mouse position for aiming
+            mouseX = touchX;
+            mouseY = touchY;
+            mouseMoved = true;
+
+            // Shoot immediately on touch
+            shoot(touchX, touchY);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            mouseX = touch.clientX - rect.left;
+            mouseY = touch.clientY - rect.top;
+            mouseMoved = true;
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
         });
 
         char1Button.addEventListener('click', async () => {
