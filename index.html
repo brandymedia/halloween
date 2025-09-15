@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Zombie Smasher</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -840,6 +843,15 @@
         }
 
         async function requestMotionPermission() {
+            // Lock screen orientation to portrait
+            if (screen.orientation && screen.orientation.lock) {
+                try {
+                    await screen.orientation.lock('portrait');
+                } catch (error) {
+                    console.warn('Could not lock orientation:', error);
+                }
+            }
+
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
                     const permission = await DeviceOrientationEvent.requestPermission();
@@ -1034,18 +1046,23 @@
 
             // Use accelerometer on mobile, keyboard on desktop
             if (isMobile && motionPermissionGranted) {
-                // Convert tilt angles to movement
-                const tiltSensitivity = 0.3;
-                const deadZone = 5; // Degrees of dead zone to prevent drift
+                // Convert tilt angles to movement with better sensitivity
+                const tiltSensitivity = 1.2;
+                const deadZone = 3; // Smaller dead zone for better responsiveness
+                const maxTilt = 30; // Maximum useful tilt angle
 
-                // Left-right movement (gamma: -90 to 90)
+                // Left-right movement (gamma: -90 to 90, but we use smaller range)
                 if (Math.abs(accelerometerData.x) > deadZone) {
-                    dx = (accelerometerData.x / 90) * currentSpeed * tiltSensitivity;
+                    const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, accelerometerData.x));
+                    dx = (clampedTilt / maxTilt) * currentSpeed * tiltSensitivity;
                 }
 
-                // Forward-backward movement (beta: -180 to 180)
-                if (Math.abs(accelerometerData.y - 90) > deadZone) { // 90 is neutral position
-                    dy = ((accelerometerData.y - 90) / 90) * currentSpeed * tiltSensitivity;
+                // Forward-backward movement (beta in portrait mode)
+                // In portrait, neutral is around 0, forward tilt is negative, backward is positive
+                const adjustedBeta = accelerometerData.y;
+                if (Math.abs(adjustedBeta) > deadZone) {
+                    const clampedTilt = Math.max(-maxTilt, Math.min(maxTilt, adjustedBeta));
+                    dy = (clampedTilt / maxTilt) * currentSpeed * tiltSensitivity;
                 }
             } else {
                 // Desktop keyboard controls
