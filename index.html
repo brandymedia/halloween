@@ -254,13 +254,13 @@
                         <canvas id="char3Canvas" width="80" height="100"></canvas>
                     </div>
                 </div>
-                <div style="text-align: center; margin: 20px 0;">
-                    <p>Move with WASD or Arrow Keys</p>
+                <div id="instructions" style="text-align: center; margin: 20px 0;">
+                    <p id="movement-instructions">Move with WASD or Arrow Keys</p>
                     <p>Aim with the mouse and shoot with click or spacebar</p>
                     <p>Collect mystery chests to get more ammo!</p>
                 </div>
                 <div style="font-size: 0.8em; margin: 10px auto;">
-                    <p>Switch weapons: 1 - Pistol | 2 - Shotgun | 3 - Grenade | 4 - Missile</p>
+                    <p>Switch weapons: 1 - Pistol | 2 - Shotgun | 3 - Frag Grenade | 4 - Nuke | 5 - Missile</p>
                 </div>
             </div>
             <div id="game-over-screen">
@@ -379,6 +379,11 @@
             a: false,
             d: false
         };
+
+        // Mobile accelerometer variables
+        let isMobile = false;
+        let accelerometerData = { x: 0, y: 0, z: 0 };
+        let motionPermissionGranted = false;
 
         let zombies = [];
         let skeletons = [];
@@ -828,7 +833,53 @@
         }
 
         const audioManager = new AudioManager();
-        
+
+        // Mobile detection and accelerometer setup
+        function detectMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        async function requestMotionPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    motionPermissionGranted = permission === 'granted';
+                } catch (error) {
+                    console.warn('Motion permission request failed:', error);
+                    motionPermissionGranted = false;
+                }
+            } else {
+                // For Android or browsers that don't need permission
+                motionPermissionGranted = true;
+            }
+
+            if (motionPermissionGranted) {
+                setupAccelerometer();
+            }
+        }
+
+        function setupAccelerometer() {
+            window.addEventListener('deviceorientation', (event) => {
+                if (motionPermissionGranted && isMobile) {
+                    // Get orientation data (beta = front-back tilt, gamma = left-right tilt)
+                    accelerometerData.x = event.gamma || 0; // Left-right tilt (-90 to 90)
+                    accelerometerData.y = event.beta || 0;  // Front-back tilt (-180 to 180)
+                    accelerometerData.z = event.alpha || 0; // Compass direction
+                }
+            });
+        }
+
+        // Initialize mobile detection
+        isMobile = detectMobile();
+
+        // Update instructions for mobile users
+        if (isMobile) {
+            const movementInstructions = document.getElementById('movement-instructions');
+            if (movementInstructions) {
+                movementInstructions.textContent = 'Tilt your device to move';
+            }
+        }
+
         // Define the walls of the maze
         let walls = [];
         let doors = [];
@@ -981,10 +1032,28 @@
                 currentSpeed *= 1.5; // 50% speed increase
             }
 
-            if (keys.ArrowUp || keys.w) dy = -currentSpeed;
-            if (keys.ArrowDown || keys.s) dy = currentSpeed;
-            if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
-            if (keys.ArrowRight || keys.d) dx = currentSpeed;
+            // Use accelerometer on mobile, keyboard on desktop
+            if (isMobile && motionPermissionGranted) {
+                // Convert tilt angles to movement
+                const tiltSensitivity = 0.3;
+                const deadZone = 5; // Degrees of dead zone to prevent drift
+
+                // Left-right movement (gamma: -90 to 90)
+                if (Math.abs(accelerometerData.x) > deadZone) {
+                    dx = (accelerometerData.x / 90) * currentSpeed * tiltSensitivity;
+                }
+
+                // Forward-backward movement (beta: -180 to 180)
+                if (Math.abs(accelerometerData.y - 90) > deadZone) { // 90 is neutral position
+                    dy = ((accelerometerData.y - 90) / 90) * currentSpeed * tiltSensitivity;
+                }
+            } else {
+                // Desktop keyboard controls
+                if (keys.ArrowUp || keys.w) dy = -currentSpeed;
+                if (keys.ArrowDown || keys.s) dy = currentSpeed;
+                if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
+                if (keys.ArrowRight || keys.d) dx = currentSpeed;
+            }
 
             // Normalize vector for consistent diagonal speed
             if (dx !== 0 && dy !== 0) {
@@ -1903,6 +1972,7 @@
         
         function spawnChest() {
             if (Date.now() - lastChestSpawn < CHEST_SPAWN_INTERVAL) return;
+            if (chests.length > 0) return; // Only allow one chest at a time
             lastChestSpawn = Date.now();
 
             let x, y;
@@ -1912,7 +1982,7 @@
                 y = Math.random() * (canvas.height - 50) + 25;
                 attempt++;
             } while (checkWallCollision(x, y, 20) && attempt < 100);
-            
+
             if (attempt < 100) {
                 chests.push({
                     x, y,
@@ -2160,6 +2230,11 @@
             // Initialize audio on first user interaction
             await audioManager.init();
             audioManager.startBackgroundMusic();
+
+            // Request motion permission for mobile devices
+            if (isMobile) {
+                await requestMotionPermission();
+            }
 
             isGameOver = false;
             score = 0;
