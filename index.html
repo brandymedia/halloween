@@ -563,7 +563,9 @@
             frame: 0,
             lastFrameChange: Date.now(),
             variant: 0,
-            direction: 'down'
+            direction: 'down',
+            isShooting: false,
+            shootingEndTime: 0
         };
         
         const characterVariants = [
@@ -1390,26 +1392,78 @@
                 drawCtx.fillRect(x - 2*size, y + size, 4*size, 3*size);
             }
 
-            // Arms based on direction
+            // Arms based on direction and shooting state
             drawCtx.fillStyle = vestGray;
-            if (direction === 'down' || direction === 'up') {
-                // Both arms visible
-                drawCtx.fillRect(x - 7*size, y + armOffset, 2*size, 7*size); // Left arm
-                drawCtx.fillRect(x + 5*size, y - armOffset, 2*size, 7*size); // Right arm
-                // Hands
-                drawCtx.fillStyle = skinColor;
-                drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
-                drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
+
+            // Get shooting state from player object (passed as variant parameter context)
+            const isShooting = player.isShooting;
+
+            if (direction === 'down') {
+                // Front view
+                if (isShooting) {
+                    // Shooting pose - only left arm raised, right arm normal
+                    drawCtx.fillRect(x - 7*size, y - 2*size, 2*size, 5*size); // Left arm raised
+                    drawCtx.fillRect(x + 5*size, y - armOffset, 2*size, 7*size); // Right arm normal
+                    // Hands
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 7*size, y + 2*size, 2*size, 2*size); // Left hand extended
+                    drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size); // Right hand normal
+                } else {
+                    // Normal walking pose
+                    drawCtx.fillRect(x - 7*size, y + armOffset, 2*size, 7*size); // Left arm
+                    drawCtx.fillRect(x + 5*size, y - armOffset, 2*size, 7*size); // Right arm
+                    // Hands
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
+                    drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
+                }
+            } else if (direction === 'up') {
+                // Back view
+                if (isShooting) {
+                    // Shooting pose from back - right arm raised
+                    drawCtx.fillRect(x - 7*size, y + armOffset, 2*size, 7*size); // Left arm normal
+                    drawCtx.fillRect(x + 5*size, y - 2*size, 2*size, 5*size); // Right arm raised
+                    // Hands
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size); // Left hand normal
+                    drawCtx.fillRect(x + 5*size, y + 2*size, 2*size, 2*size); // Right hand raised
+                } else {
+                    // Normal walking pose
+                    drawCtx.fillRect(x - 7*size, y + armOffset, 2*size, 7*size); // Left arm
+                    drawCtx.fillRect(x + 5*size, y - armOffset, 2*size, 7*size); // Right arm
+                    // Hands
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
+                    drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
+                }
             } else if (direction === 'right') {
-                // Right side view - arm in center of body
-                drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
-                drawCtx.fillStyle = skinColor;
-                drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+                // Right side view
+                if (isShooting) {
+                    // Shooting pose - arm extended forward
+                    drawCtx.fillRect(x - size, y - 2*size, 2*size, 5*size); // Arm raised
+                    drawCtx.fillRect(x + size, y - 2*size, 3*size, 2*size); // Extended forward
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x + 3*size, y - 2*size, 2*size, 2*size); // Hand extended
+                } else {
+                    // Normal pose
+                    drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+                }
             } else if (direction === 'left') {
-                // Left side view - same as right, will be mirrored
-                drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
-                drawCtx.fillStyle = skinColor;
-                drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+                // Left side view - use same coordinates as right, transform will mirror
+                if (isShooting) {
+                    // Shooting pose - same as right side (will be automatically mirrored)
+                    drawCtx.fillRect(x - size, y - 2*size, 2*size, 5*size); // Arm raised
+                    drawCtx.fillRect(x + size, y - 2*size, 3*size, 2*size); // Extended forward
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x + 3*size, y - 2*size, 2*size, 2*size); // Hand extended
+                } else {
+                    // Normal pose - same as right side
+                    drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+                }
             }
 
             // Tactical pants - direction-specific leg visibility
@@ -1585,6 +1639,11 @@
                     door.open = false;
                 }
             });
+
+            // Update shooting state
+            if (player.isShooting && Date.now() > player.shootingEndTime) {
+                player.isShooting = false;
+            }
         }
 
         function spawnZombie() {
@@ -2203,6 +2262,10 @@
 
         function shoot(targetX, targetY) {
             if (isGameOver) return;
+
+            // Set shooting state for animation
+            player.isShooting = true;
+            player.shootingEndTime = Date.now() + 300; // 300ms shooting pose
 
             let dx, dy;
             if (mouseMoved) {
