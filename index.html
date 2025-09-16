@@ -1326,14 +1326,27 @@
 
             drawCtx.save();
 
-            // Handle direction-specific rendering
-            if (direction === 'left') {
+            // Handle direction-specific rendering and mirroring
+            const isLeftFacing = direction === 'left' || direction === 'up-left' || direction === 'down-left';
+            if (isLeftFacing) {
                 drawCtx.translate(x, 0);
                 drawCtx.scale(-1, 1);
                 drawCtx.translate(-x, 0);
             }
 
-            if (direction === 'down') {
+            // Determine base direction for rendering (map diagonals to appropriate base)
+            let baseDirection = direction;
+            if (direction === 'down-left' || direction === 'down-right') {
+                baseDirection = 'down';
+            } else if (direction === 'up-left' || direction === 'up-right') {
+                baseDirection = 'up';
+            } else if (direction === 'down-left' || direction === 'up-left') {
+                baseDirection = 'left';  // Will be handled by mirroring
+            } else if (direction === 'down-right' || direction === 'up-right') {
+                baseDirection = 'right';
+            }
+
+            if (baseDirection === 'down') {
                 // FRONT VIEW - like your original image
                 // Hood/Helmet with angular shape
                 drawCtx.fillStyle = hoodColor;
@@ -1353,7 +1366,7 @@
                 drawCtx.fillRect(x - 2*size, y - 7*size, size, size);
                 drawCtx.fillRect(x + size, y - 7*size, size, size);
 
-            } else if (direction === 'up') {
+            } else if (baseDirection === 'up') {
                 // BACK VIEW - show back of hood
                 drawCtx.fillStyle = hoodColor;
                 drawCtx.fillRect(x - 6*size, y - 12*size, 12*size, 10*size);
@@ -1362,7 +1375,7 @@
                 drawCtx.fillRect(x - 5*size, y - 11*size, 10*size, 8*size);
                 drawCtx.fillRect(x - 4*size, y - 10*size, 8*size, 6*size);
 
-            } else if (direction === 'right') {
+            } else if (baseDirection === 'right') {
                 // RIGHT SIDE VIEW - proper profile
                 // Hood - narrower from side
                 drawCtx.fillStyle = hoodColor;
@@ -1380,7 +1393,7 @@
                 drawCtx.fillStyle = '#000000';
                 drawCtx.fillRect(x + 2*size, y - 7*size, size, size);
 
-            } else if (direction === 'left') {
+            } else if (baseDirection === 'left') {
                 // LEFT SIDE VIEW - same as right, will be mirrored by transform
                 // Hood - narrower from side
                 drawCtx.fillStyle = hoodColor;
@@ -1408,8 +1421,8 @@
             drawCtx.fillRect(x - 5*size, y - 2*size, 2*size, 9*size); // Left side
             drawCtx.fillRect(x + 3*size, y - 2*size, 2*size, 9*size);  // Right side
 
-            // Orange chest piece - only visible from front view
-            if (direction === 'down') {
+            // Orange chest piece - only visible from front and front-diagonal views
+            if (baseDirection === 'down') {
                 drawCtx.fillStyle = orangeGear;
                 drawCtx.fillRect(x - 2*size, y + size, 4*size, 3*size);
             }
@@ -1420,7 +1433,7 @@
             // Get shooting state from player object (passed as variant parameter context)
             const isShooting = player.isShooting;
 
-            if (direction === 'down') {
+            if (baseDirection === 'down') {
                 // Front view
                 if (isShooting) {
                     // Shooting pose - only left arm raised, right arm normal
@@ -1439,7 +1452,7 @@
                     drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
                     drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
                 }
-            } else if (direction === 'up') {
+            } else if (baseDirection === 'up') {
                 // Back view
                 if (isShooting) {
                     // Shooting pose from back - right arm raised
@@ -1458,7 +1471,7 @@
                     drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
                     drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
                 }
-            } else if (direction === 'right') {
+            } else if (baseDirection === 'right') {
                 // Right side view
                 if (isShooting) {
                     // Shooting pose - arm extended forward
@@ -1472,7 +1485,7 @@
                     drawCtx.fillStyle = skinColor;
                     drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
                 }
-            } else if (direction === 'left') {
+            } else if (baseDirection === 'left') {
                 // Left side view - use same coordinates as right, transform will mirror
                 if (isShooting) {
                     // Shooting pose - same as right side (will be automatically mirrored)
@@ -1490,7 +1503,7 @@
 
             // Tactical pants - direction-specific leg visibility
             drawCtx.fillStyle = pantsGreen;
-            if (direction === 'down' || direction === 'up') {
+            if (baseDirection === 'down' || baseDirection === 'up') {
                 // Front/back view - both legs visible
                 drawCtx.fillRect(x - 4*size, y + 7*size + legOffset, 3*size, 7*size); // Left leg
                 drawCtx.fillRect(x + size, y + 7*size - legOffset, 3*size, 7*size);   // Right leg
@@ -1626,13 +1639,29 @@
                 playerDirection.x = dx;
                 playerDirection.y = dy;
 
-                // Update character direction based on movement
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Moving more horizontally
-                    player.direction = dx > 0 ? 'right' : 'left';
-                } else {
-                    // Moving more vertically
-                    player.direction = dy > 0 ? 'down' : 'up';
+                // Update character direction based on movement (8 directions)
+                // In screen coordinates: +x = right, +y = down, -y = up
+                const angle = Math.atan2(dy, dx);
+
+                // Map angle to 8 directions - simpler approach
+                const angleDegrees = (angle * 180 / Math.PI + 360) % 360;
+
+                if (angleDegrees >= 337.5 || angleDegrees < 22.5) {
+                    player.direction = 'right';
+                } else if (angleDegrees >= 22.5 && angleDegrees < 67.5) {
+                    player.direction = 'down-right';
+                } else if (angleDegrees >= 67.5 && angleDegrees < 112.5) {
+                    player.direction = 'down';
+                } else if (angleDegrees >= 112.5 && angleDegrees < 157.5) {
+                    player.direction = 'down-left';
+                } else if (angleDegrees >= 157.5 && angleDegrees < 202.5) {
+                    player.direction = 'left';
+                } else if (angleDegrees >= 202.5 && angleDegrees < 247.5) {
+                    player.direction = 'up-left';
+                } else if (angleDegrees >= 247.5 && angleDegrees < 292.5) {
+                    player.direction = 'up';
+                } else if (angleDegrees >= 292.5 && angleDegrees < 337.5) {
+                    player.direction = 'up-right';
                 }
             }
 
@@ -1644,12 +1673,26 @@
                 // Only update direction if mouse is far enough from player to avoid jittery rotation
                 const cursorDistance = Math.hypot(cursorDx, cursorDy);
                 if (cursorDistance > 20) {
-                    if (Math.abs(cursorDx) > Math.abs(cursorDy)) {
-                        // Cursor is more horizontally positioned
-                        player.direction = cursorDx > 0 ? 'right' : 'left';
-                    } else {
-                        // Cursor is more vertically positioned
-                        player.direction = cursorDy > 0 ? 'down' : 'up';
+                    // Calculate 8-directional facing based on cursor position
+                    const angle = Math.atan2(cursorDy, cursorDx);
+                    const angleDegrees = (angle * 180 / Math.PI + 360) % 360;
+
+                    if (angleDegrees >= 337.5 || angleDegrees < 22.5) {
+                        player.direction = 'right';
+                    } else if (angleDegrees >= 22.5 && angleDegrees < 67.5) {
+                        player.direction = 'down-right';
+                    } else if (angleDegrees >= 67.5 && angleDegrees < 112.5) {
+                        player.direction = 'down';
+                    } else if (angleDegrees >= 112.5 && angleDegrees < 157.5) {
+                        player.direction = 'down-left';
+                    } else if (angleDegrees >= 157.5 && angleDegrees < 202.5) {
+                        player.direction = 'left';
+                    } else if (angleDegrees >= 202.5 && angleDegrees < 247.5) {
+                        player.direction = 'up-left';
+                    } else if (angleDegrees >= 247.5 && angleDegrees < 292.5) {
+                        player.direction = 'up';
+                    } else if (angleDegrees >= 292.5 && angleDegrees < 337.5) {
+                        player.direction = 'up-right';
                     }
                 }
             }
