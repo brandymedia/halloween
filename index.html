@@ -3133,7 +3133,20 @@
                 bullet.x += bullet.dx;
                 bullet.y += bullet.dy;
             });
-            playerBullets = playerBullets.filter(bullet => bullet.x > -10 && bullet.x < canvas.width + 10 && bullet.y > -10 && bullet.y < canvas.height + 10);
+            // Filter bullets using zoomed game world boundaries
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const gameWorldWidth = canvas.width / zoomFactor;
+            const gameWorldHeight = canvas.height / zoomFactor;
+            const minBound = -offsetX - 50; // Extra margin for bullets
+            const maxBoundX = gameWorldWidth - offsetX + 50;
+            const maxBoundY = gameWorldHeight - offsetY + 50;
+
+            playerBullets = playerBullets.filter(bullet =>
+                bullet.x > minBound && bullet.x < maxBoundX &&
+                bullet.y > minBound && bullet.y < maxBoundY
+            );
         }
         
         function updateEnemyBullets() {
@@ -3141,7 +3154,20 @@
                 bullet.x += bullet.dx;
                 bullet.y += bullet.dy;
             });
-            enemyBullets = enemyBullets.filter(bullet => bullet.x > -10 && bullet.x < canvas.width + 10 && bullet.y > -10 && bullet.y < canvas.height + 10);
+            // Filter enemy bullets using zoomed game world boundaries
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const gameWorldWidth = canvas.width / zoomFactor;
+            const gameWorldHeight = canvas.height / zoomFactor;
+            const minBound = -offsetX - 50; // Extra margin for bullets
+            const maxBoundX = gameWorldWidth - offsetX + 50;
+            const maxBoundY = gameWorldHeight - offsetY + 50;
+
+            enemyBullets = enemyBullets.filter(bullet =>
+                bullet.x > minBound && bullet.x < maxBoundX &&
+                bullet.y > minBound && bullet.y < maxBoundY
+            );
         }
 
         function drawBullets() {
@@ -3184,10 +3210,20 @@
                 fragment.y += fragment.dy;
                 fragment.life--;
             });
+            // Filter fragments using zoomed game world boundaries
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const gameWorldWidth = canvas.width / zoomFactor;
+            const gameWorldHeight = canvas.height / zoomFactor;
+            const minBound = -offsetX - 50;
+            const maxBoundX = gameWorldWidth - offsetX + 50;
+            const maxBoundY = gameWorldHeight - offsetY + 50;
+
             fragments = fragments.filter(fragment =>
                 fragment.life > 0 &&
-                fragment.x > -10 && fragment.x < canvas.width + 10 &&
-                fragment.y > -10 && fragment.y < canvas.height + 10
+                fragment.x > minBound && fragment.x < maxBoundX &&
+                fragment.y > minBound && fragment.y < maxBoundY
             );
         }
 
