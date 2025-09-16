@@ -562,7 +562,8 @@
             speed: 5,
             frame: 0,
             lastFrameChange: Date.now(),
-            variant: 0
+            variant: 0,
+            direction: 'down'
         };
         
         const characterVariants = [
@@ -1279,34 +1280,175 @@
             });
         }
         
-        function drawPlayerFrame(drawCtx, x, y, frame, variant) {
-            const size = 3;
-            const { skinColor, hoodieColor, pantsColor } = characterVariants[variant];
+        function drawPlayerFrame(drawCtx, x, y, frame, variant, direction = 'down') {
+            const size = 2.5; // Slightly larger for better detail
 
-            // Head & Hood
-            drawCtx.fillStyle = hoodieColor;
-            drawCtx.fillRect(x - 5 * size, y - 8 * size, 11 * size, 8 * size);
-            
-            drawCtx.fillStyle = skinColor;
-            drawCtx.fillRect(x - 2 * size, y - 5 * size, 5 * size, 4 * size);
-            
-            drawCtx.fillStyle = '#000000'; // Eyes
-            drawCtx.fillRect(x - 2 * size, y - 4 * size, size, size);
-            drawCtx.fillRect(x + size, y - 4 * size, size, size);
 
-            // Body & Arms
-            drawCtx.fillStyle = hoodieColor;
-            drawCtx.fillRect(x - 4 * size, y - 2 * size, 9 * size, 8 * size);
-            
-            const armOffset = frame === 1 ? -size : (frame === 2 ? size : 0);
-            drawCtx.fillRect(x - 6 * size, y + size + armOffset, 2 * size, 6 * size); // Left arm
-            drawCtx.fillRect(x + 5 * size, y + size - armOffset, 2 * size, 6 * size); // Right arm
+            // Exact colors from your tactical character
+            const hoodColor = '#2A2A2A';      // Dark gray hood
+            const hoodShadow = '#1A1A1A';    // Even darker for depth
+            const skinColor = '#D2A679';     // Tan skin
+            const vestGray = '#606060';      // Gray vest
+            const vestDark = '#404040';      // Dark vest areas
+            const orangeGear = '#FF8800';    // Bright orange gear
+            const pantsGreen = '#5A6B2E';    // Olive green pants
+            const pantsDark = '#454F24';     // Dark green shadows
+            const bootsBlack = '#0F0F0F';   // Black boots
 
-            // Legs
-            const legOffset = frame === 1 ? -size : (frame === 2 ? size : 0);
-            drawCtx.fillStyle = pantsColor;
-            drawCtx.fillRect(x - 3 * size, y + 6 * size + legOffset, 3 * size, 6 * size);
-            drawCtx.fillRect(x + size, y + 6 * size - legOffset, 3 * size, 6 * size);
+            // Animation offsets
+            const walkCycle = frame % 3;
+            const armOffset = walkCycle === 1 ? -size/2 : (walkCycle === 2 ? size/2 : 0);
+            const legOffset = walkCycle === 1 ? -size/2 : (walkCycle === 2 ? size/2 : 0);
+
+            drawCtx.save();
+
+            // Handle direction-specific rendering
+            if (direction === 'left') {
+                drawCtx.translate(x, 0);
+                drawCtx.scale(-1, 1);
+                drawCtx.translate(-x, 0);
+            }
+
+            if (direction === 'down') {
+                // FRONT VIEW - like your original image
+                // Hood/Helmet with angular shape
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 6*size, y - 12*size, 12*size, 10*size);
+                // Hood shadow and details
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 6*size, y - 12*size, 12*size, 2*size);
+                drawCtx.fillRect(x - 6*size, y - 10*size, 2*size, 8*size);
+                drawCtx.fillRect(x + 4*size, y - 10*size, 2*size, 8*size);
+
+                // Face opening - rectangular like your image
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x - 3*size, y - 8*size, 6*size, 5*size);
+
+                // Eyes - simple black rectangles
+                drawCtx.fillStyle = '#000000';
+                drawCtx.fillRect(x - 2*size, y - 7*size, size, size);
+                drawCtx.fillRect(x + size, y - 7*size, size, size);
+
+            } else if (direction === 'up') {
+                // BACK VIEW - show back of hood
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 6*size, y - 12*size, 12*size, 10*size);
+                // Back hood details
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 5*size, y - 11*size, 10*size, 8*size);
+                drawCtx.fillRect(x - 4*size, y - 10*size, 8*size, 6*size);
+
+            } else if (direction === 'right') {
+                // RIGHT SIDE VIEW - proper profile
+                // Hood - narrower from side
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 4*size, y - 12*size, 8*size, 10*size);
+                // Hood shadow - side profile
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 4*size, y - 12*size, 8*size, 2*size);
+                drawCtx.fillRect(x - 4*size, y - 10*size, 2*size, 8*size);
+
+                // Profile face - smaller, more realistic
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x + size, y - 8*size, 2*size, 4*size);
+
+                // One eye visible in profile - positioned correctly
+                drawCtx.fillStyle = '#000000';
+                drawCtx.fillRect(x + 2*size, y - 7*size, size, size);
+
+            } else if (direction === 'left') {
+                // LEFT SIDE VIEW - same as right, will be mirrored by transform
+                // Hood - narrower from side
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 4*size, y - 12*size, 8*size, 10*size);
+                // Hood shadow - side profile
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 4*size, y - 12*size, 8*size, 2*size);
+                drawCtx.fillRect(x - 4*size, y - 10*size, 2*size, 8*size);
+
+                // Profile face - smaller, more realistic
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x + size, y - 8*size, 2*size, 4*size);
+
+                // One eye visible in profile - positioned correctly
+                drawCtx.fillStyle = '#000000';
+                drawCtx.fillRect(x + 2*size, y - 7*size, size, size);
+            }
+
+            // Tactical vest - main body
+            drawCtx.fillStyle = vestGray;
+            drawCtx.fillRect(x - 5*size, y - 2*size, 10*size, 9*size);
+
+            // Vest details and shadows
+            drawCtx.fillStyle = vestDark;
+            drawCtx.fillRect(x - 5*size, y - 2*size, 2*size, 9*size); // Left side
+            drawCtx.fillRect(x + 3*size, y - 2*size, 2*size, 9*size);  // Right side
+
+            // Orange chest piece - only visible from front view
+            if (direction === 'down') {
+                drawCtx.fillStyle = orangeGear;
+                drawCtx.fillRect(x - 2*size, y + size, 4*size, 3*size);
+            }
+
+            // Arms based on direction
+            drawCtx.fillStyle = vestGray;
+            if (direction === 'down' || direction === 'up') {
+                // Both arms visible
+                drawCtx.fillRect(x - 7*size, y + armOffset, 2*size, 7*size); // Left arm
+                drawCtx.fillRect(x + 5*size, y - armOffset, 2*size, 7*size); // Right arm
+                // Hands
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x - 7*size, y + 6*size + armOffset, 2*size, 2*size);
+                drawCtx.fillRect(x + 5*size, y + 6*size - armOffset, 2*size, 2*size);
+            } else if (direction === 'right') {
+                // Right side view - arm in center of body
+                drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+            } else if (direction === 'left') {
+                // Left side view - same as right, will be mirrored
+                drawCtx.fillRect(x - size, y + armOffset, 2*size, 7*size);
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
+            }
+
+            // Tactical pants - direction-specific leg visibility
+            drawCtx.fillStyle = pantsGreen;
+            if (direction === 'down' || direction === 'up') {
+                // Front/back view - both legs visible
+                drawCtx.fillRect(x - 4*size, y + 7*size + legOffset, 3*size, 7*size); // Left leg
+                drawCtx.fillRect(x + size, y + 7*size - legOffset, 3*size, 7*size);   // Right leg
+
+                // Pants shadows/details
+                drawCtx.fillStyle = pantsDark;
+                drawCtx.fillRect(x - 4*size, y + 7*size + legOffset, size, 7*size);
+                drawCtx.fillRect(x + size, y + 7*size - legOffset, size, 7*size);
+
+                // Combat boots
+                drawCtx.fillStyle = bootsBlack;
+                drawCtx.fillRect(x - 4*size, y + 13*size + legOffset, 3*size, 3*size);
+                drawCtx.fillRect(x + size, y + 13*size - legOffset, 3*size, 3*size);
+            } else {
+                // Side view - only one leg visible (the closer one)
+                // Show second leg only when walking (frame > 0)
+                if (frame > 0) {
+                    // Walking - show back leg first (darker)
+                    drawCtx.fillStyle = pantsDark;
+                    drawCtx.fillRect(x - 2*size, y + 7*size - legOffset, 3*size, 7*size);
+                    drawCtx.fillStyle = bootsBlack;
+                    drawCtx.fillRect(x - 2*size, y + 13*size - legOffset, 3*size, 3*size);
+                }
+
+                // Front leg (always visible)
+                drawCtx.fillStyle = pantsGreen;
+                drawCtx.fillRect(x - size, y + 7*size + legOffset, 3*size, 7*size);
+                drawCtx.fillStyle = pantsDark;
+                drawCtx.fillRect(x - size, y + 7*size + legOffset, size, 7*size);
+                drawCtx.fillStyle = bootsBlack;
+                drawCtx.fillRect(x - size, y + 13*size + legOffset, 3*size, 3*size);
+            }
+
+            drawCtx.restore();
         }
 
         function checkWallCollision(x, y, radius) {
@@ -1407,6 +1549,17 @@
             if (dx !== 0 || dy !== 0) {
                 playerDirection.x = dx;
                 playerDirection.y = dy;
+
+                // Update character direction based on movement
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Moving more horizontally
+                    player.direction = dx > 0 ? 'right' : 'left';
+                } else {
+                    // Moving more vertically
+                    player.direction = dy > 0 ? 'down' : 'up';
+                }
+
+
                 if (Date.now() - player.lastFrameChange > PLAYER_ANIM_SPEED) {
                     player.frame = (player.frame + 1) % 3;
                     player.lastFrameChange = Date.now();
@@ -2919,13 +3072,13 @@
                 if (Math.floor(invincibilityFrames / 100) % 2 === 0) {
                     ctx.save();
                     ctx.globalAlpha = 0.5;
-                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant, player.direction);
                     ctx.restore();
                 } else {
-                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+                    drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant, player.direction);
                 }
             } else {
-                drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant);
+                drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant, player.direction);
             }
             drawZombies();
             drawSkeletons();
@@ -2954,9 +3107,9 @@
             updateCrosshair();
             updateHealthDisplay();
             // Draw character variants on start screen
-            drawPlayerFrame(ctx1, char1Canvas.width / 2, char1Canvas.height / 2, 1, 0);
-            drawPlayerFrame(ctx2, char2Canvas.width / 2, char2Canvas.height / 2, 1, 1);
-            drawPlayerFrame(ctx3, char3Canvas.width / 2, char3Canvas.height / 2, 1, 2);
+            drawPlayerFrame(ctx1, char1Canvas.width / 2, char1Canvas.height / 2, 1, 0, 'down');
+            drawPlayerFrame(ctx2, char2Canvas.width / 2, char2Canvas.height / 2, 1, 1, 'down');
+            drawPlayerFrame(ctx3, char3Canvas.width / 2, char3Canvas.height / 2, 1, 2, 'down');
         };
 
         document.addEventListener('keydown', (e) => {
