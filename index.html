@@ -629,6 +629,67 @@
             console.log('Controller disconnected');
         }
 
+        // Menu navigation functions
+        function updateMenuSelection() {
+            const buttons = [char1Button, char2Button, char3Button];
+            buttons.forEach((btn, index) => {
+                if (index === selectedCharacter) {
+                    btn.style.border = '3px solid #ff6600';
+                    btn.style.transform = 'scale(1.1)';
+                } else {
+                    btn.style.border = '2px solid #333';
+                    btn.style.transform = 'scale(1)';
+                }
+            });
+        }
+
+        function handleMenuInput() {
+            if (!gamepad) {
+                detectGamepad();
+                return;
+            }
+
+            if (!isInMenu) return;
+
+            // Update gamepad state
+            gamepad = navigator.getGamepads()[gamepadIndex];
+            if (!gamepad) return;
+
+            // D-pad or left stick for character selection
+            const leftPressed = getButtonPressed(14); // D-pad left
+            const rightPressed = getButtonPressed(15); // D-pad right
+            const leftStick = applyDeadzone(gamepad.axes[0]);
+            const aPressed = getButtonPressed(0); // A button
+
+            // Debug logging
+            if (leftPressed || rightPressed || aPressed || Math.abs(leftStick) > 0.1) {
+                console.log(`Menu Input - Left: ${leftPressed}, Right: ${rightPressed}, A: ${aPressed}, Stick: ${leftStick.toFixed(2)}, Selected: ${selectedCharacter}`);
+            }
+
+            // Navigate left/right between characters
+            if (leftPressed || (leftStick < -0.5 && !window.lastLeftStick)) {
+                selectedCharacter = (selectedCharacter - 1 + 3) % 3;
+                audioManager.playSound('buttonClick');
+                updateMenuSelection();
+                console.log(`Selected character ${selectedCharacter}`);
+            } else if (rightPressed || (leftStick > 0.5 && !window.lastLeftStick)) {
+                selectedCharacter = (selectedCharacter + 1) % 3;
+                audioManager.playSound('buttonClick');
+                updateMenuSelection();
+                console.log(`Selected character ${selectedCharacter}`);
+            }
+
+            // Store last left stick state for edge detection
+            window.lastLeftStick = (leftStick > 0.5 || leftStick < -0.5);
+
+            // A button to select character and start game
+            if (aPressed) {
+                console.log(`Starting game with character ${selectedCharacter}`);
+                player.variant = selectedCharacter;
+                startGame();
+            }
+        }
+
         // Gamepad utility functions
         function applyDeadzone(value, deadzone = GAMEPAD_DEADZONE) {
             return Math.abs(value) < deadzone ? 0 : value;
@@ -694,6 +755,10 @@
         const GAMEPAD_AIM_SENSITIVITY = 3;
         let gamepadAimX = 0;
         let gamepadAimY = 0;
+
+        // Menu navigation with controller
+        let selectedCharacter = 0; // 0, 1, or 2 for char1, char2, char3
+        let isInMenu = true;
 
         let zombies = [];
         let skeletons = [];
@@ -1725,11 +1790,13 @@
             } else {
                 // Try gamepad input first, fall back to keyboard
                 const gamepadInput = updateGamepadInput();
+                let usingGamepad = false;
 
                 if (gamepadInput.dx !== 0 || gamepadInput.dy !== 0) {
                     // Use gamepad movement
                     dx = gamepadInput.dx;
                     dy = gamepadInput.dy;
+                    usingGamepad = true;
                 } else {
                     // Fall back to keyboard controls
                     if (keys.ArrowUp || keys.w) dy = -currentSpeed;
@@ -1737,13 +1804,13 @@
                     if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
                     if (keys.ArrowRight || keys.d) dx = currentSpeed;
                 }
-            }
 
-            // Normalize vector for consistent diagonal speed
-            if (dx !== 0 && dy !== 0) {
-                const magnitude = Math.sqrt(dx * dx + dy * dy);
-                dx = (dx / magnitude) * currentSpeed;
-                dy = (dy / magnitude) * currentSpeed;
+                // Normalize vector for consistent diagonal speed (only for keyboard, gamepad already normalized)
+                if (!usingGamepad && dx !== 0 && dy !== 0) {
+                    const magnitude = Math.sqrt(dx * dx + dy * dy);
+                    dx = (dx / magnitude) * currentSpeed;
+                    dy = (dy / magnitude) * currentSpeed;
+                }
             }
             
             const newX = player.x + dx;
@@ -1885,20 +1952,49 @@
             // Update gamepad state
             gamepad = navigator.getGamepads()[gamepadIndex];
             if (!gamepad) {
+                console.log('Gamepad disconnected during update');
                 disconnectGamepad();
                 return { dx: 0, dy: 0, aiming: false };
             }
 
+
             let dx = 0, dy = 0;
             let aimChanged = false;
 
-            // Left stick - Movement
+            // Left stick - Movement with variable speed
             const leftX = applyDeadzone(gamepad.axes[0]);
             const leftY = applyDeadzone(gamepad.axes[1]);
 
             if (leftX !== 0 || leftY !== 0) {
-                dx = leftX * player.speed;
-                dy = leftY * player.speed;
+                // Reset aim direction when movement stick is used
+                gamepadAimX = 0;
+                gamepadAimY = 0;
+
+                // Calculate stick magnitude for speed scaling
+                const stickMagnitude = Math.min(Math.hypot(leftX, leftY), 1.0);
+
+                // Gradual speed curve: slow start, gradual increase, max 75% speed
+                // Using a smooth curve for more natural feel
+
+                // Option 1: Current power curve (good for precise movement)
+                // const speedMultiplier = Math.pow(stickMagnitude, 1.5) * 0.75;
+
+                // Option 2: Smoother S-curve (more gradual acceleration, then faster)
+                const t = stickMagnitude;
+                const speedMultiplier = (3 * t * t - 2 * t * t * t) * 0.5;
+
+                // Option 3: Even smoother cubic curve
+                // const speedMultiplier = Math.pow(stickMagnitude, 3) * 0.75;
+
+                // Option 4: Sine curve (very smooth acceleration)
+                // const speedMultiplier = Math.sin(stickMagnitude * Math.PI / 2) * 0.75;
+
+                // Normalize direction to prevent diagonal speed-up
+                const normalizedX = leftX / stickMagnitude;
+                const normalizedY = leftY / stickMagnitude;
+
+                dx = normalizedX * player.speed * speedMultiplier;
+                dy = normalizedY * player.speed * speedMultiplier;
             }
 
             // Right stick - Aiming (Twin Stick Shooter style)
@@ -1935,12 +2031,16 @@
                 gamepadAimX = rightX;
                 gamepadAimY = rightY;
             }
+            // Note: Don't reset aim here - let it persist until movement stick is used
 
-            // Right Trigger - Shooting
-            if (getButtonHeld(7)) { // RT button
+            // Right Trigger or A button - Shooting
+            const shootTrigger = getButtonHeld(7); // RT button
+            const shootA = getButtonPressed(0); // A button for single shots
+
+            if (shootTrigger || shootA) { // RT button or A button
                 if (currentWeapon === 'assaultRifle') {
-                    // Handle automatic firing for assault rifle
-                    if (!autoFireInterval) {
+                    // Handle automatic firing for assault rifle (only with RT trigger, not A)
+                    if (shootTrigger && !autoFireInterval) {
                         shoot(0, 0); // Will use gamepad aim direction
                         autoFireInterval = setInterval(() => {
                             if (getButtonHeld(7) && currentWeapon === 'assaultRifle') {
@@ -1950,10 +2050,13 @@
                                 autoFireInterval = null;
                             }
                         }, ASSAULT_RIFLE_FIRE_RATE);
+                    } else if (shootA) {
+                        // A button fires single shots even for assault rifle
+                        shoot(0, 0);
                     }
                 } else {
-                    // Single shot weapons
-                    if (getButtonPressed(7)) {
+                    // Single shot weapons work with both RT and A button
+                    if (getButtonPressed(7) || shootA) {
                         shoot(0, 0);
                     }
                 }
@@ -2628,15 +2731,17 @@
             player.shootingEndTime = Date.now() + 300; // 300ms shooting pose
 
             let dx, dy;
-            // Priority: gamepad aim > mouse > last direction
+            // Priority: gamepad aim > mouse (only if not using gamepad) > movement direction
             if (gamepad && (gamepadAimX !== 0 || gamepadAimY !== 0)) {
                 // Use gamepad aim direction
                 dx = gamepadAimX * GAMEPAD_AIM_SENSITIVITY;
                 dy = gamepadAimY * GAMEPAD_AIM_SENSITIVITY;
-            } else if (mouseMoved) {
+            } else if (!gamepad && mouseMoved) {
+                // Use mouse direction only when not using gamepad
                 dx = mouseX - player.x;
                 dy = mouseY - player.y;
             } else {
+                // Default to character movement direction
                 dx = playerDirection.x;
                 dy = playerDirection.y;
             }
@@ -3239,6 +3344,7 @@
             }
 
             isGameOver = false;
+            isInMenu = false;
             score = 0;
             playerHealth = maxHealth;
             invincibilityFrames = 0;
@@ -3506,6 +3612,13 @@
         }
 
         function gameLoop() {
+            // Handle menu input when in menu
+            if (isInMenu) {
+                handleMenuInput();
+                requestAnimationFrame(gameLoop); // Keep loop running in menu
+                return;
+            }
+
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -3607,6 +3720,10 @@
             startMenu.style.display = 'flex';
             highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
             startHighScoreSpan.textContent = `High Score: ${highScore}`;
+            isInMenu = true;
+            updateMenuSelection();
+            // Start the game loop immediately for menu input
+            gameLoop();
             updateWeaponDisplay();
             updateCrosshair();
             updateHealthDisplay();
@@ -3700,10 +3817,16 @@
                 mousePressed = true;
                 if (currentWeapon === 'assaultRifle') {
                     // Start automatic firing
+                    console.log('Starting assault rifle auto-fire');
                     shoot(mouseX, mouseY);
                     autoFireInterval = setInterval(() => {
                         if (mousePressed && currentWeapon === 'assaultRifle') {
+                            console.log('Auto-firing assault rifle');
                             shoot(mouseX, mouseY);
+                        } else {
+                            console.log('Stopping auto-fire: mousePressed =', mousePressed, 'weapon =', currentWeapon);
+                            clearInterval(autoFireInterval);
+                            autoFireInterval = null;
                         }
                     }, ASSAULT_RIFLE_FIRE_RATE);
                 } else {
@@ -3714,6 +3837,7 @@
         });
 
         canvas.addEventListener('mouseup', (e) => {
+            console.log('Mouse up - stopping auto-fire');
             mousePressed = false;
             if (autoFireInterval) {
                 clearInterval(autoFireInterval);
@@ -3837,6 +3961,8 @@
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
             gameOverScreen.style.display = 'none';
+            isInMenu = true;
+            updateMenuSelection();
         });
 
         // Initialize mobile weapon drawer
