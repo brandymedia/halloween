@@ -305,6 +305,18 @@
             line-height: 1;
         }
 
+        #xp-display {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #FFD700;
+            font-weight: bold;
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+            z-index: 5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
 
         #character-selection {
             display: flex;
@@ -368,8 +380,9 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="score-display">Score: 0</div>
-        <div id="highScoreDisplay">High Score: 0</div>
+        <div id="score-display">Session XP: 0</div>
+        <div id="highScoreDisplay">Best Session: 0 XP</div>
+        <div id="xp-display">XP: 0</div>
         <div id="weapon-display">Weapon: Pistol</div>
         <div id="ammo-display">Ammo: Inf</div>
         <div id="health-display">❤️❤️❤️</div>
@@ -401,8 +414,8 @@
             </div>
             <div id="game-over-screen">
                 <h1>Game Over</h1>
-                <p>Final Score: <span id="finalScore">0</span></p>
-                <p>High Score: <span id="highScore">0</span></p>
+                <p>Session XP: <span id="finalScore">0</span></p>
+                <p>Best Session: <span id="highScore">0</span></p>
                 <button id="restartButton" class="btn">Play Again</button>
             </div>
         </div>
@@ -500,6 +513,7 @@
 
         const scoreDisplay = document.getElementById('score-display');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const xpDisplay = document.getElementById('xp-display');
         const weaponDisplay = document.getElementById('weapon-display');
         const ammoDisplay = document.getElementById('ammo-display');
         const healthDisplay = document.getElementById('health-display');
@@ -521,8 +535,58 @@
         const ctx3 = char3Canvas.getContext('2d');
 
         let isGameOver = true;
-        let score = 0;
-        let highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
+        let highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
+
+        // XP System for Meta Progression
+        let totalXP = 0;
+        let sessionXP = 0;
+
+        // Load saved XP from localStorage
+        function loadProgress() {
+            const saved = localStorage.getItem('zombieGameProgress');
+            if (saved) {
+                const progress = JSON.parse(saved);
+                totalXP = progress.totalXP || 0;
+            }
+        }
+
+        // Save progress to localStorage
+        function saveProgress() {
+            const progress = {
+                totalXP: totalXP
+            };
+            localStorage.setItem('zombieGameProgress', JSON.stringify(progress));
+        }
+
+        // Award XP for killing enemies
+        function awardXP(amount) {
+            totalXP += amount;
+            sessionXP += amount;
+            saveProgress();
+            updateXPDisplay();
+            updateSessionXPDisplay();
+        }
+
+        // Update session XP display
+        function updateSessionXPDisplay() {
+            scoreDisplay.textContent = `Session XP: ${sessionXP}`;
+        }
+
+        // Update XP display
+        function updateXPDisplay() {
+            xpDisplay.textContent = `XP: ${totalXP}`;
+        }
+
+        // Check and update high session XP
+        function checkHighSessionXP() {
+            if (sessionXP > highSessionXP) {
+                highSessionXP = sessionXP;
+                localStorage.setItem('zombieGameHighSessionXP', highSessionXP.toString());
+                highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
+                return true; // New record
+            }
+            return false;
+        }
         let playerHealth = 3;
         const maxHealth = 3;
         let invincibilityFrames = 0;
@@ -1048,21 +1112,57 @@
                 return () => {
                     if (!this.enabled || !this.audioContext) return;
 
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
+                    const duration = 0.4; // Longer for more realistic whoosh
+                    const now = this.audioContext.currentTime;
 
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
+                    // Main whoosh sound (filtered noise)
+                    const bufferSize = this.audioContext.sampleRate * duration;
+                    const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
 
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime);
-                    oscillator.frequency.linearRampToValueAtTime(150, this.audioContext.currentTime + 0.2);
+                    // Generate filtered white noise for air movement
+                    for (let i = 0; i < bufferSize; i++) {
+                        noiseData[i] = (Math.random() * 2 - 1) * 0.3;
+                    }
 
-                    gainNode.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.1, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+                    const noiseSource = this.audioContext.createBufferSource();
+                    noiseSource.buffer = noiseBuffer;
 
-                    oscillator.start(this.audioContext.currentTime);
-                    oscillator.stop(this.audioContext.currentTime + 0.2);
+                    // Filter to shape the whoosh - smoother sweep
+                    const filter = this.audioContext.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(400, now);
+                    filter.frequency.exponentialRampToValueAtTime(150, now + duration);
+                    filter.Q.setValueAtTime(0.7, now); // Lower Q for softer filtering
+
+                    // Main gain envelope for whoosh - gentler transitions
+                    const whooshGain = this.audioContext.createGain();
+                    whooshGain.gain.setValueAtTime(0, now);
+                    whooshGain.gain.exponentialRampToValueAtTime(this.sfxVolume * this.masterVolume * 0.35, now + 0.1);
+                    whooshGain.gain.exponentialRampToValueAtTime(this.sfxVolume * this.masterVolume * 0.25, now + 0.25);
+                    whooshGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                    // Softer mechanical sound at start
+                    const clickOsc = this.audioContext.createOscillator();
+                    const clickGain = this.audioContext.createGain();
+                    clickOsc.type = 'triangle'; // Softer than square wave
+                    clickOsc.frequency.setValueAtTime(120, now);
+                    clickGain.gain.setValueAtTime(this.sfxVolume * this.masterVolume * 0.12, now);
+                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                    // Connect the audio graph
+                    noiseSource.connect(filter);
+                    filter.connect(whooshGain);
+                    whooshGain.connect(this.audioContext.destination);
+
+                    clickOsc.connect(clickGain);
+                    clickGain.connect(this.audioContext.destination);
+
+                    // Start the sounds
+                    noiseSource.start(now);
+                    noiseSource.stop(now + duration);
+                    clickOsc.start(now);
+                    clickOsc.stop(now + 0.05);
                 };
             }
 
@@ -1388,10 +1488,16 @@
                 { x: centerX + wallHalfSize - wallThickness, y: centerY - wallHalfSize, width: wallThickness, height: size, color: wallColor },
             ];
 
-            // Define the two doors
+            // Define the two doors with animation properties
             doors = [
-                { x: topDoorX, y: topDoorY, width: doorSize, height: wallThickness, color: doorColor, open: false },
-                { x: bottomDoorX, y: bottomDoorY, width: doorSize, height: wallThickness, color: doorColor, open: false }
+                {
+                    x: topDoorX, y: topDoorY, width: doorSize, height: wallThickness,
+                    color: doorColor, open: false, openAmount: 0, targetOpen: 0
+                },
+                {
+                    x: bottomDoorX, y: bottomDoorY, width: doorSize, height: wallThickness,
+                    color: doorColor, open: false, openAmount: 0, targetOpen: 0
+                }
             ];
         }
 
@@ -1426,15 +1532,33 @@
         resizeCanvas();
         
         function drawWalls() {
+            // Draw doors FIRST so they appear behind walls
+            doors.forEach(door => {
+                ctx.fillStyle = door.color;
+
+                // Draw double doors that slide into wall pockets (behind walls)
+                const halfWidth = door.width * 0.5;
+
+                // Calculate available wall pocket space on each side
+                const wallGapWidth = (125 - 70) / 2; // (size - doorSize) / 2 = 27.5px
+                const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
+                const slideDistance = maxSlideDistance * door.openAmount; // Proportional slide distance
+                const panelWidth = halfWidth; // Each panel is always half door width
+
+                // Always draw full panels (they'll be hidden by walls when sliding)
+                // Left door panel - starts at door.x, slides left into wall pocket
+                const leftPanelX = door.x - slideDistance;
+                ctx.fillRect(leftPanelX, door.y, panelWidth, door.height);
+
+                // Right door panel - starts at door.x + halfWidth, slides right into wall pocket
+                const rightPanelX = door.x + halfWidth + slideDistance;
+                ctx.fillRect(rightPanelX, door.y, panelWidth, door.height);
+            });
+
+            // Draw walls AFTER doors so they cover sliding panels
             walls.forEach(wall => {
                 ctx.fillStyle = wall.color;
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
-            });
-            doors.forEach(door => {
-                if (!door.open) {
-                    ctx.fillStyle = door.color;
-                    ctx.fillRect(door.x, door.y, door.width, door.height);
-                }
             });
         }
         
@@ -1731,12 +1855,47 @@
                 }
             }
             for (const door of doors) {
-                if (!door.open) {
-                    const testX = Math.max(door.x, Math.min(x, door.x + door.width));
-                    const testY = Math.max(door.y, Math.min(y, door.y + door.height));
-                    const distX = x - testX;
-                    const distY = y - testY;
-                    const distance = Math.sqrt((distX * distX) + (distY * distY));
+                if (door.openAmount < 1) {
+                    // Check collision only with visible parts of door panels
+                    const halfWidth = door.width * 0.5;
+                    const wallGapWidth = (125 - 70) / 2; // Available wall pocket space
+                    const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
+                    const slideDistance = maxSlideDistance * door.openAmount;
+                    const panelWidth = halfWidth;
+
+                    let distance = Infinity;
+
+                    if (door.openAmount < 1) {
+                        // Left door panel collision - only visible part in doorway
+                        const leftPanelX = door.x - slideDistance;
+                        const leftVisibleStart = Math.max(door.x, leftPanelX);
+                        const leftVisibleEnd = Math.min(door.x + halfWidth, leftPanelX + panelWidth);
+                        const leftVisibleWidth = Math.max(0, leftVisibleEnd - leftVisibleStart);
+
+                        if (leftVisibleWidth > 0) {
+                            const testXLeft = Math.max(leftVisibleStart, Math.min(x, leftVisibleStart + leftVisibleWidth));
+                            const testYLeft = Math.max(door.y, Math.min(y, door.y + door.height));
+                            const distXLeft = x - testXLeft;
+                            const distYLeft = y - testYLeft;
+                            const distanceLeft = Math.sqrt((distXLeft * distXLeft) + (distYLeft * distYLeft));
+                            distance = Math.min(distance, distanceLeft);
+                        }
+
+                        // Right door panel collision - only visible part in doorway
+                        const rightPanelX = door.x + halfWidth + slideDistance;
+                        const rightVisibleStart = Math.max(door.x + halfWidth, rightPanelX);
+                        const rightVisibleEnd = Math.min(door.x + door.width, rightPanelX + panelWidth);
+                        const rightVisibleWidth = Math.max(0, rightVisibleEnd - rightVisibleStart);
+
+                        if (rightVisibleWidth > 0) {
+                            const testXRight = Math.max(rightVisibleStart, Math.min(x, rightVisibleStart + rightVisibleWidth));
+                            const testYRight = Math.max(door.y, Math.min(y, door.y + door.height));
+                            const distXRight = x - testXRight;
+                            const distYRight = y - testYRight;
+                            const distanceRight = Math.sqrt((distXRight * distXRight) + (distYRight * distYRight));
+                            distance = Math.min(distance, distanceRight);
+                        }
+                    }
                     if (distance <= radius) {
                         return true;
                     }
@@ -1923,18 +2082,34 @@
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
             
-            // Door logic
+            // Door logic with gradual animation
             doors.forEach(door => {
                 const dist = Math.hypot(player.x - (door.x + door.width/2), player.y - (door.y + door.height/2));
-                const wasOpen = door.open;
+                const wasTargetOpen = door.targetOpen;
+
+                // Determine target state
                 if (dist < player.radius + 30) {
-                    door.open = true;
-                    if (!wasOpen) {
-                        audioManager.playSound('doorOpen');
+                    door.targetOpen = 1; // Fully open
+                    if (wasTargetOpen === 0) {
+                        audioManager.playSound('doorOpen'); // Sound when starting to open
                     }
                 } else {
-                    door.open = false;
+                    door.targetOpen = 0; // Fully closed
+                    if (wasTargetOpen === 1) {
+                        audioManager.playSound('doorOpen'); // Sound when starting to close
+                    }
                 }
+
+                // Gradually animate towards target (slower movement)
+                const animationSpeed = 0.025; // Slower animation (was instant)
+                if (door.openAmount < door.targetOpen) {
+                    door.openAmount = Math.min(door.targetOpen, door.openAmount + animationSpeed);
+                } else if (door.openAmount > door.targetOpen) {
+                    door.openAmount = Math.max(door.targetOpen, door.openAmount - animationSpeed);
+                }
+
+                // Update open state for collision detection
+                door.open = door.openAmount > 0.5;
             });
 
             // Update shooting state
@@ -2189,12 +2364,47 @@
                 }
             }
             for (const door of doors) {
-                if (!door.open) {
-                    const testX = Math.max(door.x, Math.min(x, door.x + door.width));
-                    const testY = Math.max(door.y, Math.min(y, door.y + door.height));
-                    const distX = x - testX;
-                    const distY = y - testY;
-                    const distance = Math.sqrt((distX * distX) + (distY * distY));
+                if (door.openAmount < 1) {
+                    // Check collision only with visible parts of door panels
+                    const halfWidth = door.width * 0.5;
+                    const wallGapWidth = (125 - 70) / 2; // Available wall pocket space
+                    const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
+                    const slideDistance = maxSlideDistance * door.openAmount;
+                    const panelWidth = halfWidth;
+
+                    let distance = Infinity;
+
+                    if (door.openAmount < 1) {
+                        // Left door panel collision - only visible part in doorway
+                        const leftPanelX = door.x - slideDistance;
+                        const leftVisibleStart = Math.max(door.x, leftPanelX);
+                        const leftVisibleEnd = Math.min(door.x + halfWidth, leftPanelX + panelWidth);
+                        const leftVisibleWidth = Math.max(0, leftVisibleEnd - leftVisibleStart);
+
+                        if (leftVisibleWidth > 0) {
+                            const testXLeft = Math.max(leftVisibleStart, Math.min(x, leftVisibleStart + leftVisibleWidth));
+                            const testYLeft = Math.max(door.y, Math.min(y, door.y + door.height));
+                            const distXLeft = x - testXLeft;
+                            const distYLeft = y - testYLeft;
+                            const distanceLeft = Math.sqrt((distXLeft * distXLeft) + (distYLeft * distYLeft));
+                            distance = Math.min(distance, distanceLeft);
+                        }
+
+                        // Right door panel collision - only visible part in doorway
+                        const rightPanelX = door.x + halfWidth + slideDistance;
+                        const rightVisibleStart = Math.max(door.x + halfWidth, rightPanelX);
+                        const rightVisibleEnd = Math.min(door.x + door.width, rightPanelX + panelWidth);
+                        const rightVisibleWidth = Math.max(0, rightVisibleEnd - rightVisibleStart);
+
+                        if (rightVisibleWidth > 0) {
+                            const testXRight = Math.max(rightVisibleStart, Math.min(x, rightVisibleStart + rightVisibleWidth));
+                            const testYRight = Math.max(door.y, Math.min(y, door.y + door.height));
+                            const distXRight = x - testXRight;
+                            const distYRight = y - testYRight;
+                            const distanceRight = Math.sqrt((distXRight * distXRight) + (distYRight * distYRight));
+                            distance = Math.min(distance, distanceRight);
+                        }
+                    }
                     if (distance <= radius) {
                         return true;
                     }
@@ -2642,24 +2852,24 @@
                 } else if (damage.includes('MULTI') || damage.includes('RAPID')) {
                     color = '#ff00ff'; // Magenta for special weapons
                 } else {
-                    color = '#ffffff'; // White for score bonus
+                    color = '#FFD700'; // Gold for XP bonus
                 }
                 text = damage;
             } else if (isHeadshot) {
                 if (enemyType === 'zombie') {
                     color = '#ffff00'; // Bright yellow for zombie headshots
-                    text = `+${damage}`;
+                    text = damage.toString().startsWith('+') ? damage : `+${damage}`;
                 } else {
                     color = '#ffffff'; // White for skeleton headshots
-                    text = `+${damage}`;
+                    text = damage.toString().startsWith('+') ? damage : `+${damage}`;
                 }
             } else {
                 if (enemyType === 'zombie') {
                     color = '#ffffff'; // White for zombie body shots
-                    text = `+${damage}`;
+                    text = damage.toString().startsWith('+') ? damage : `+${damage}`;
                 } else {
                     color = '#cccccc'; // Gray for skeleton body shots
-                    text = `+${damage}`;
+                    text = damage.toString().startsWith('+') ? damage : `+${damage}`;
                 }
             }
 
@@ -2835,9 +3045,10 @@
                     life: 1,
                     particles: []
                 });
-                score += zombies.length * 10;
+                // Award XP for nuke kills
+                awardXP(zombies.length * 1); // 1 XP per zombie
                 zombies = [];
-                score += skeletons.length * 20;
+                awardXP(skeletons.length * 2); // 2 XP per skeleton
                 skeletons = [];
 
                 // Destroy all chests in nuke blast
@@ -3086,31 +3297,22 @@
                          setTimeout(() => {
                             const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
                             createBloodSplatter(zombie.x, zombie.y - 10, bulletAngle, true);
-                            createDamageNumber(zombie.x, zombie.y - 20, 30, true, 'zombie');
+                            createDamageNumber(zombie.x, zombie.y - 20, '+3 XP', true, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 30; // Headshot bonus
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(3); // Zombie headshot XP
                         }, 0);
+                        return; // Prevent body shot from also triggering
                     } else if (distance < bullet.radius + 12) {
                         setTimeout(() => {
                             const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
                             createBloodSplatter(zombie.x, zombie.y, bulletAngle, false);
-                            createDamageNumber(zombie.x, zombie.y - 10, 10, false, 'zombie');
+                            createDamageNumber(zombie.x, zombie.y - 10, '+1 XP', false, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 10;
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(1); // Regular zombie XP
                         }, 0);
                     }
                 });
@@ -3126,31 +3328,22 @@
                          setTimeout(() => {
                             const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
                             createDustSplatter(skeleton.x, skeleton.y - 10, bulletAngle, true);
-                            createDamageNumber(skeleton.x, skeleton.y - 20, 50, true, 'skeleton');
+                            createDamageNumber(skeleton.x, skeleton.y - 20, '+5 XP', true, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 50; // Headshot bonus
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(5); // Skeleton headshot XP
                         }, 0);
+                        return; // Prevent body shot from also triggering
                     } else if (distance < bullet.radius + skeleton.size) {
                          setTimeout(() => {
                             const bulletAngle = Math.atan2(bullet.dy, bullet.dx);
                             createDustSplatter(skeleton.x, skeleton.y, bulletAngle, false);
-                            createDamageNumber(skeleton.x, skeleton.y - 10, 20, false, 'skeleton');
+                            createDamageNumber(skeleton.x, skeleton.y - 10, '+2 XP', false, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 20;
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(2); // Regular skeleton XP
                         }, 0);
                     }
                 });
@@ -3221,15 +3414,10 @@
                         });
                         setTimeout(() => {
                             createBloodSplatter(missile.x, missile.y, Math.random() * Math.PI * 2, false);
-                            createDamageNumber(zombie.x, zombie.y - 10, 20, false, 'zombie');
+                            createDamageNumber(zombie.x, zombie.y - 10, '+2 XP', false, 'zombie');
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 20;
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(2); // Explosion kill XP
                         }, 0);
                     }
                 });
@@ -3278,16 +3466,11 @@
                         setTimeout(() => {
                             const fragmentAngle = Math.atan2(fragment.dy, fragment.dx);
                             createBloodSplatter(zombie.x, zombie.y, fragmentAngle, false);
-                            createDamageNumber(zombie.x, zombie.y - 10, 15, false, 'zombie');
+                            createDamageNumber(zombie.x, zombie.y - 10, '+2 XP', false, 'zombie');
                             fragments.splice(fIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 15;
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(2); // Explosion kill XP
                         }, 0);
                     }
                 });
@@ -3299,16 +3482,11 @@
                         setTimeout(() => {
                             const fragmentAngle = Math.atan2(fragment.dy, fragment.dx);
                             createBloodSplatter(skeleton.x, skeleton.y, fragmentAngle, false, 'dust');
-                            createDamageNumber(skeleton.x, skeleton.y - 10, 25, false, 'skeleton');
+                            createDamageNumber(skeleton.x, skeleton.y - 10, '+2 XP', false, 'skeleton');
                             fragments.splice(fIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('enemyDeath');
-                            let scoreGain = 25;
-                            if (activePowerUps.damageMultiplier > 0) {
-                                scoreGain *= 2;
-                            }
-                            score += scoreGain;
-                            scoreDisplay.textContent = `Score: ${score}`;
+                            awardXP(2); // Explosion kill XP
                         }, 0);
                     }
                 });
@@ -3319,14 +3497,11 @@
             isGameOver = true;
             cancelAnimationFrame(animationId);
             audioManager.stopBackgroundMusic();
-            finalScoreSpan.textContent = score;
+            finalScoreSpan.textContent = `${sessionXP} XP`;
 
-            // Check for and update high score
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('zombieSmasherHighScore', highScore);
-            }
-            highScoreSpan.textContent = highScore;
+            // Check for and update high session XP
+            const newRecord = checkHighSessionXP();
+            highScoreSpan.textContent = `${highSessionXP} XP`;
 
             gameUI.style.display = 'flex';
             gameOverScreen.style.display = 'flex';
@@ -3345,7 +3520,7 @@
 
             isGameOver = false;
             isInMenu = false;
-            score = 0;
+            sessionXP = 0; // Reset session XP for new game
             playerHealth = maxHealth;
             invincibilityFrames = 0;
             // Reset all power-ups
@@ -3370,8 +3545,8 @@
             ammo = { ...maxAmmo };
             player.x = canvas.width / 2;
             player.y = canvas.height / 2;
-            scoreDisplay.textContent = 'Score: 0';
-            highScoreDisplay.textContent = `High Score: ${highScore}`;
+            updateSessionXPDisplay();
+            highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
             gameUI.style.display = 'none';
             gameOverScreen.style.display = 'none';
             startMenu.style.display = 'none';
@@ -3490,14 +3665,14 @@
         }
 
         function getLootDropProbabilities() {
-            // Dynamic loot probabilities based on score
-            if (score < 500) {
+            // Dynamic loot probabilities based on session XP
+            if (sessionXP < 50) {
                 // Early game: mostly ammo and health
                 return {
                     [lootTypes.AMMO]: 60,
                     [lootTypes.HEALTH]: 40
                 };
-            } else if (score < 1500) {
+            } else if (sessionXP < 150) {
                 // Mid game: add power-ups
                 return {
                     [lootTypes.AMMO]: 40,
@@ -3564,18 +3739,17 @@
                         audioManager.playSound('chestPickup');
                     } else {
                         // Full health, give score bonus instead
-                        score += 50;
-                        createDamageNumber(player.x, player.y - 30, '+50', false, 'loot');
-                        scoreDisplay.textContent = `Score: ${score}`;
+                        awardXP(5);
+                        createDamageNumber(player.x, player.y - 30, '+5 XP', false, 'loot');
                         audioManager.playSound('chestPickup');
                     }
                     break;
 
                 case lootTypes.SCORE_BONUS:
                     const bonus = Math.random() > 0.5 ? 100 : 50;
-                    score += bonus;
-                    createDamageNumber(player.x, player.y - 30, `+${bonus}`, false, 'loot');
-                    scoreDisplay.textContent = `Score: ${score}`;
+                    const xpBonus = Math.floor(bonus / 10);
+                    awardXP(xpBonus);
+                    createDamageNumber(player.x, player.y - 30, `+${xpBonus} XP`, false, 'loot');
                     audioManager.playSound('chestPickup');
                     break;
 
@@ -3718,8 +3892,13 @@
             resizeCanvas();
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
-            highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
-            startHighScoreSpan.textContent = `High Score: ${highScore}`;
+            highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
+            startHighScoreSpan.textContent = `Best Session: ${highSessionXP} XP`;
+
+            // Initialize XP system
+            loadProgress();
+            updateXPDisplay();
+
             isInMenu = true;
             updateMenuSelection();
             // Start the game loop immediately for menu input
@@ -3956,8 +4135,8 @@
             await audioManager.init();
             audioManager.playSound('buttonClick');
             audioManager.stopBackgroundMusic();
-            highScore = parseInt(localStorage.getItem('zombieSmasherHighScore')) || 0;
-            startHighScoreSpan.textContent = `High Score: ${highScore}`;
+            highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
+            startHighScoreSpan.textContent = `Best Session: ${highSessionXP} XP`;
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
             gameOverScreen.style.display = 'none';
