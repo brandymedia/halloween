@@ -609,6 +609,43 @@
 
         let playerDirection = { x: 0, y: -1 };
         let currentWeapon = 'pistol';
+
+        // Gamepad detection and management
+        function detectGamepad() {
+            const gamepads = navigator.getGamepads();
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    gamepad = gamepads[i];
+                    gamepadIndex = i;
+                    console.log(`Xbox Controller connected: ${gamepad.id}`);
+                    return;
+                }
+            }
+        }
+
+        function disconnectGamepad() {
+            gamepad = null;
+            gamepadIndex = -1;
+            console.log('Controller disconnected');
+        }
+
+        // Gamepad utility functions
+        function applyDeadzone(value, deadzone = GAMEPAD_DEADZONE) {
+            return Math.abs(value) < deadzone ? 0 : value;
+        }
+
+        function getButtonPressed(buttonIndex) {
+            if (!gamepad) return false;
+            const pressed = gamepad.buttons[buttonIndex]?.pressed || false;
+            const wasPressed = lastGamepadButtons[buttonIndex] || false;
+            lastGamepadButtons[buttonIndex] = pressed;
+            return pressed && !wasPressed; // Edge detection for single press
+        }
+
+        function getButtonHeld(buttonIndex) {
+            if (!gamepad) return false;
+            return gamepad.buttons[buttonIndex]?.pressed || false;
+        }
         let ammo = {
             pistol: Infinity,
             shotgun: 10,
@@ -648,6 +685,15 @@
         // Automatic firing for assault rifle
         let autoFireInterval = null;
         const ASSAULT_RIFLE_FIRE_RATE = 150; // milliseconds between shots
+
+        // Xbox Controller Support (Twin Stick Shooter)
+        let gamepad = null;
+        let gamepadIndex = -1;
+        let lastGamepadButtons = {};
+        const GAMEPAD_DEADZONE = 0.2;
+        const GAMEPAD_AIM_SENSITIVITY = 3;
+        let gamepadAimX = 0;
+        let gamepadAimY = 0;
 
         let zombies = [];
         let skeletons = [];
@@ -1297,6 +1343,21 @@
             player.y = canvas.height / 2;
         }
         window.addEventListener('resize', resizeCanvas);
+
+        // Gamepad event listeners
+        window.addEventListener("gamepadconnected", function(e) {
+            console.log("Gamepad connected:", e.gamepad.id);
+            gamepad = e.gamepad;
+            gamepadIndex = e.gamepad.index;
+        });
+
+        window.addEventListener("gamepaddisconnected", function(e) {
+            console.log("Gamepad disconnected:", e.gamepad.id);
+            if (e.gamepad.index === gamepadIndex) {
+                disconnectGamepad();
+            }
+        });
+
         resizeCanvas();
         
         function drawWalls() {
@@ -1662,11 +1723,20 @@
                     dy = (clampedTilt / maxTilt) * currentSpeed * tiltSensitivity;
                 }
             } else {
-                // Desktop keyboard controls
-                if (keys.ArrowUp || keys.w) dy = -currentSpeed;
-                if (keys.ArrowDown || keys.s) dy = currentSpeed;
-                if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
-                if (keys.ArrowRight || keys.d) dx = currentSpeed;
+                // Try gamepad input first, fall back to keyboard
+                const gamepadInput = updateGamepadInput();
+
+                if (gamepadInput.dx !== 0 || gamepadInput.dy !== 0) {
+                    // Use gamepad movement
+                    dx = gamepadInput.dx;
+                    dy = gamepadInput.dy;
+                } else {
+                    // Fall back to keyboard controls
+                    if (keys.ArrowUp || keys.w) dy = -currentSpeed;
+                    if (keys.ArrowDown || keys.s) dy = currentSpeed;
+                    if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
+                    if (keys.ArrowRight || keys.d) dx = currentSpeed;
+                }
             }
 
             // Normalize vector for consistent diagonal speed
@@ -1804,6 +1874,136 @@
             if (player.isShooting && Date.now() > player.shootingEndTime) {
                 player.isShooting = false;
             }
+        }
+
+        function updateGamepadInput() {
+            if (!gamepad) {
+                detectGamepad();
+                return { dx: 0, dy: 0, aiming: false };
+            }
+
+            // Update gamepad state
+            gamepad = navigator.getGamepads()[gamepadIndex];
+            if (!gamepad) {
+                disconnectGamepad();
+                return { dx: 0, dy: 0, aiming: false };
+            }
+
+            let dx = 0, dy = 0;
+            let aimChanged = false;
+
+            // Left stick - Movement
+            const leftX = applyDeadzone(gamepad.axes[0]);
+            const leftY = applyDeadzone(gamepad.axes[1]);
+
+            if (leftX !== 0 || leftY !== 0) {
+                dx = leftX * player.speed;
+                dy = leftY * player.speed;
+            }
+
+            // Right stick - Aiming (Twin Stick Shooter style)
+            const rightX = applyDeadzone(gamepad.axes[2]);
+            const rightY = applyDeadzone(gamepad.axes[3]);
+
+            if (rightX !== 0 || rightY !== 0) {
+                // Update aim direction
+                const angle = Math.atan2(rightY, rightX);
+                const angleDegrees = (angle * 180 / Math.PI + 360) % 360;
+
+                // Same direction logic as movement but for aiming
+                if (angleDegrees >= 345 || angleDegrees < 15) {
+                    player.direction = 'right';
+                } else if (angleDegrees >= 15 && angleDegrees < 75) {
+                    player.direction = 'down-right';
+                } else if (angleDegrees >= 75 && angleDegrees < 105) {
+                    player.direction = 'down';
+                } else if (angleDegrees >= 105 && angleDegrees < 165) {
+                    player.direction = 'down-left';
+                } else if (angleDegrees >= 165 && angleDegrees < 195) {
+                    player.direction = 'left';
+                } else if (angleDegrees >= 195 && angleDegrees < 255) {
+                    player.direction = 'up-left';
+                } else if (angleDegrees >= 255 && angleDegrees < 285) {
+                    player.direction = 'up';
+                } else if (angleDegrees >= 285 && angleDegrees < 345) {
+                    player.direction = 'up-right';
+                }
+
+                aimChanged = true;
+
+                // Store aim direction for shooting
+                gamepadAimX = rightX;
+                gamepadAimY = rightY;
+            }
+
+            // Right Trigger - Shooting
+            if (getButtonHeld(7)) { // RT button
+                if (currentWeapon === 'assaultRifle') {
+                    // Handle automatic firing for assault rifle
+                    if (!autoFireInterval) {
+                        shoot(0, 0); // Will use gamepad aim direction
+                        autoFireInterval = setInterval(() => {
+                            if (getButtonHeld(7) && currentWeapon === 'assaultRifle') {
+                                shoot(0, 0);
+                            } else {
+                                clearInterval(autoFireInterval);
+                                autoFireInterval = null;
+                            }
+                        }, ASSAULT_RIFLE_FIRE_RATE);
+                    }
+                } else {
+                    // Single shot weapons
+                    if (getButtonPressed(7)) {
+                        shoot(0, 0);
+                    }
+                }
+            } else {
+                // Stop automatic firing when trigger is released
+                if (autoFireInterval) {
+                    clearInterval(autoFireInterval);
+                    autoFireInterval = null;
+                }
+            }
+
+            // Weapon switching with shoulder buttons
+            if (getButtonPressed(4)) { // LB - Previous weapon
+                const currentIndex = weapons.indexOf(currentWeapon);
+                const prevIndex = (currentIndex - 1 + weapons.length) % weapons.length;
+                currentWeapon = weapons[prevIndex];
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (getButtonPressed(5)) { // RB - Next weapon
+                const currentIndex = weapons.indexOf(currentWeapon);
+                const nextIndex = (currentIndex + 1) % weapons.length;
+                currentWeapon = weapons[nextIndex];
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+
+            // D-Pad weapon selection
+            if (getButtonPressed(12)) { // D-Pad Up
+                currentWeapon = 'pistol';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (getButtonPressed(13)) { // D-Pad Down
+                currentWeapon = 'shotgun';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (getButtonPressed(14)) { // D-Pad Left
+                currentWeapon = 'assaultRifle';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (getButtonPressed(15)) { // D-Pad Right
+                currentWeapon = 'fragGrenade';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+
+            return { dx, dy, aiming: aimChanged };
         }
 
         function spawnZombie() {
@@ -2428,7 +2628,12 @@
             player.shootingEndTime = Date.now() + 300; // 300ms shooting pose
 
             let dx, dy;
-            if (mouseMoved) {
+            // Priority: gamepad aim > mouse > last direction
+            if (gamepad && (gamepadAimX !== 0 || gamepadAimY !== 0)) {
+                // Use gamepad aim direction
+                dx = gamepadAimX * GAMEPAD_AIM_SENSITIVITY;
+                dy = gamepadAimY * GAMEPAD_AIM_SENSITIVITY;
+            } else if (mouseMoved) {
                 dx = mouseX - player.x;
                 dy = mouseY - player.y;
             } else {
