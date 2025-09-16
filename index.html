@@ -1334,17 +1334,8 @@
                 drawCtx.translate(-x, 0);
             }
 
-            // Determine base direction for rendering (map diagonals to appropriate base)
+            // Use the actual direction for isometric views
             let baseDirection = direction;
-            if (direction === 'down-left' || direction === 'down-right') {
-                baseDirection = 'down';
-            } else if (direction === 'up-left' || direction === 'up-right') {
-                baseDirection = 'up';
-            } else if (direction === 'down-left' || direction === 'up-left') {
-                baseDirection = 'left';  // Will be handled by mirroring
-            } else if (direction === 'down-right' || direction === 'up-right') {
-                baseDirection = 'right';
-            }
 
             if (baseDirection === 'down') {
                 // FRONT VIEW - like your original image
@@ -1410,6 +1401,35 @@
                 // One eye visible in profile - positioned correctly
                 drawCtx.fillStyle = '#000000';
                 drawCtx.fillRect(x + 2*size, y - 7*size, size, size);
+
+            } else if (baseDirection === 'down-right' || baseDirection === 'down-left') {
+                // FRONT-DIAGONAL VIEW - 3/4 isometric
+                // Hood - slightly angled
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 5*size, y - 12*size, 10*size, 10*size);
+                // Hood shadow with angle
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 5*size, y - 12*size, 10*size, 2*size);
+                drawCtx.fillRect(x - 5*size, y - 10*size, 2*size, 6*size);
+
+                // Angled face opening
+                drawCtx.fillStyle = skinColor;
+                drawCtx.fillRect(x - 2*size, y - 8*size, 5*size, 4*size);
+
+                // Two eyes visible but closer together
+                drawCtx.fillStyle = '#000000';
+                drawCtx.fillRect(x - size, y - 7*size, size, size);
+                drawCtx.fillRect(x + size, y - 7*size, size, size);
+
+            } else if (baseDirection === 'up-right' || baseDirection === 'up-left') {
+                // BACK-DIAGONAL VIEW - 3/4 isometric back
+                // Hood - angled back view
+                drawCtx.fillStyle = hoodColor;
+                drawCtx.fillRect(x - 5*size, y - 12*size, 10*size, 10*size);
+                // Back hood details with angle
+                drawCtx.fillStyle = hoodShadow;
+                drawCtx.fillRect(x - 4*size, y - 11*size, 8*size, 7*size);
+                drawCtx.fillRect(x - 3*size, y - 10*size, 6*size, 5*size);
             }
 
             // Tactical vest - main body
@@ -1422,7 +1442,7 @@
             drawCtx.fillRect(x + 3*size, y - 2*size, 2*size, 9*size);  // Right side
 
             // Orange chest piece - only visible from front and front-diagonal views
-            if (baseDirection === 'down') {
+            if (baseDirection === 'down' || baseDirection === 'down-left' || baseDirection === 'down-right') {
                 drawCtx.fillStyle = orangeGear;
                 drawCtx.fillRect(x - 2*size, y + size, 4*size, 3*size);
             }
@@ -1499,6 +1519,23 @@
                     drawCtx.fillStyle = skinColor;
                     drawCtx.fillRect(x - size, y + 6*size + armOffset, 2*size, 2*size);
                 }
+            } else if (baseDirection === 'down-right' || baseDirection === 'down-left' || baseDirection === 'up-right' || baseDirection === 'up-left') {
+                // Diagonal view - show partial arms (3/4 view)
+                if (isShooting) {
+                    // Diagonal shooting pose - one arm more visible
+                    drawCtx.fillRect(x - 2*size, y - size, 2*size, 6*size); // Main arm
+                    drawCtx.fillRect(x + 2*size, y + size, size, 4*size);   // Partial second arm
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 2*size, y + 4*size, 2*size, 2*size); // Main hand
+                    drawCtx.fillRect(x + 2*size, y + 4*size, size, 2*size);   // Partial hand
+                } else {
+                    // Normal diagonal pose
+                    drawCtx.fillRect(x - 2*size, y + armOffset, 2*size, 7*size); // Main arm
+                    drawCtx.fillRect(x + 2*size, y - armOffset + size, size, 5*size); // Partial arm
+                    drawCtx.fillStyle = skinColor;
+                    drawCtx.fillRect(x - 2*size, y + 5*size + armOffset, 2*size, 2*size);
+                    drawCtx.fillRect(x + 2*size, y + 4*size - armOffset, size, 2*size);
+                }
             }
 
             // Tactical pants - direction-specific leg visibility
@@ -1517,6 +1554,22 @@
                 drawCtx.fillStyle = bootsBlack;
                 drawCtx.fillRect(x - 4*size, y + 13*size + legOffset, 3*size, 3*size);
                 drawCtx.fillRect(x + size, y + 13*size - legOffset, 3*size, 3*size);
+            } else if (baseDirection === 'down-right' || baseDirection === 'down-left' || baseDirection === 'up-right' || baseDirection === 'up-left') {
+                // Diagonal view - both legs visible but with depth
+                // Back leg (darker, partially hidden)
+                drawCtx.fillStyle = pantsDark;
+                drawCtx.fillRect(x - 3*size, y + 7*size - legOffset, 2*size, 7*size);
+                drawCtx.fillStyle = bootsBlack;
+                drawCtx.fillRect(x - 3*size, y + 13*size - legOffset, 2*size, 3*size);
+
+                // Front leg (brighter, more visible)
+                drawCtx.fillStyle = pantsGreen;
+                drawCtx.fillRect(x, y + 7*size + legOffset, 3*size, 7*size);
+                drawCtx.fillStyle = pantsDark;
+                drawCtx.fillRect(x, y + 7*size + legOffset, size, 7*size);
+                drawCtx.fillStyle = bootsBlack;
+                drawCtx.fillRect(x, y + 13*size + legOffset, 3*size, 3*size);
+
             } else {
                 // Side view - only one leg visible (the closer one)
                 // Show second leg only when walking (frame > 0)
