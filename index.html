@@ -1634,6 +1634,28 @@
                     // Moving more vertically
                     player.direction = dy > 0 ? 'down' : 'up';
                 }
+            }
+
+            // If mouse is being used, face the cursor direction
+            if (mouseMoved) {
+                const cursorDx = mouseX - player.x;
+                const cursorDy = mouseY - player.y;
+
+                // Only update direction if mouse is far enough from player to avoid jittery rotation
+                const cursorDistance = Math.hypot(cursorDx, cursorDy);
+                if (cursorDistance > 20) {
+                    if (Math.abs(cursorDx) > Math.abs(cursorDy)) {
+                        // Cursor is more horizontally positioned
+                        player.direction = cursorDx > 0 ? 'right' : 'left';
+                    } else {
+                        // Cursor is more vertically positioned
+                        player.direction = cursorDy > 0 ? 'down' : 'up';
+                    }
+                }
+            }
+
+            // Handle animation frames
+            if (dx !== 0 || dy !== 0) {
 
 
                 if (Date.now() - player.lastFrameChange > PLAYER_ANIM_SPEED) {
