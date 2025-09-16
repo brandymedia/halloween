@@ -1687,39 +1687,59 @@
                 player.y = newY;
             }
 
-            // Update playerDirection and animation frame only if moving
+            // Update playerDirection for shooting mechanics
             if (dx !== 0 || dy !== 0) {
                 playerDirection.x = dx;
                 playerDirection.y = dy;
 
                 // Update character direction based on movement (8 directions)
-                // In screen coordinates: +x = right, +y = down, -y = up
+                // Use wider zones for diagonals to prevent flickering
                 const angle = Math.atan2(dy, dx);
-
-                // Map angle to 8 directions - simpler approach
                 const angleDegrees = (angle * 180 / Math.PI + 360) % 360;
 
-                if (angleDegrees >= 337.5 || angleDegrees < 22.5) {
-                    player.direction = 'right';
-                } else if (angleDegrees >= 22.5 && angleDegrees < 67.5) {
-                    player.direction = 'down-right';
-                } else if (angleDegrees >= 67.5 && angleDegrees < 112.5) {
-                    player.direction = 'down';
-                } else if (angleDegrees >= 112.5 && angleDegrees < 157.5) {
-                    player.direction = 'down-left';
-                } else if (angleDegrees >= 157.5 && angleDegrees < 202.5) {
-                    player.direction = 'left';
-                } else if (angleDegrees >= 202.5 && angleDegrees < 247.5) {
-                    player.direction = 'up-left';
-                } else if (angleDegrees >= 247.5 && angleDegrees < 292.5) {
-                    player.direction = 'up';
-                } else if (angleDegrees >= 292.5 && angleDegrees < 337.5) {
-                    player.direction = 'up-right';
+                // Determine new direction with wider diagonal zones
+                let newDirection;
+                if (angleDegrees >= 345 || angleDegrees < 15) {
+                    newDirection = 'right';
+                } else if (angleDegrees >= 15 && angleDegrees < 75) {
+                    newDirection = 'down-right';
+                } else if (angleDegrees >= 75 && angleDegrees < 105) {
+                    newDirection = 'down';
+                } else if (angleDegrees >= 105 && angleDegrees < 165) {
+                    newDirection = 'down-left';
+                } else if (angleDegrees >= 165 && angleDegrees < 195) {
+                    newDirection = 'left';
+                } else if (angleDegrees >= 195 && angleDegrees < 255) {
+                    newDirection = 'up-left';
+                } else if (angleDegrees >= 255 && angleDegrees < 285) {
+                    newDirection = 'up';
+                } else if (angleDegrees >= 285 && angleDegrees < 345) {
+                    newDirection = 'up-right';
+                }
+
+                // Only change direction if it's significantly different (prevent micro-adjustments)
+                const currentIsCardinal = ['up', 'down', 'left', 'right'].includes(player.direction);
+                const newIsCardinal = ['up', 'down', 'left', 'right'].includes(newDirection);
+                const currentIsDiagonal = !currentIsCardinal;
+                const newIsDiagonal = !newIsCardinal;
+
+                // If we're currently diagonal and new direction is cardinal, require larger movement
+                if (currentIsDiagonal && newIsCardinal) {
+                    // Only switch to cardinal if the angle is very close to cardinal
+                    if (angleDegrees >= 350 || angleDegrees < 10 ||
+                        (angleDegrees >= 80 && angleDegrees < 100) ||
+                        (angleDegrees >= 170 && angleDegrees < 190) ||
+                        (angleDegrees >= 260 && angleDegrees < 280)) {
+                        player.direction = newDirection;
+                    }
+                } else {
+                    // Normal direction update
+                    player.direction = newDirection;
                 }
             }
 
-            // If mouse is being used, face the cursor direction
-            if (mouseMoved) {
+            // If mouse is being used and no movement keys are pressed, face the cursor direction
+            if (mouseMoved && dx === 0 && dy === 0) {
                 const cursorDx = mouseX - player.x;
                 const cursorDy = mouseY - player.y;
 
