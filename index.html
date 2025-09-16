@@ -569,12 +569,42 @@
         };
         
         const characterVariants = [
-            // Variant 1: Grey Hoodie, Green Pants, Light Skin
-            { skinColor: '#ffdbac', hoodieColor: '#6c757d', pantsColor: '#526937' },
-            // Variant 2: Black Hoodie, Grey Pants, Dark Skin
-            { skinColor: '#8b4513', hoodieColor: '#000000', pantsColor: '#343a40' },
-            // Variant 3: Brown Hoodie, Tan Pants, Medium Skin
-            { skinColor: '#a0522d', hoodieColor: '#6f4e37', pantsColor: '#b08d57' }
+            // Variant 1: Dark Gray Tactical - Original Design
+            {
+                skinColor: '#D2A679',     // Tan skin
+                hoodColor: '#2A2A2A',     // Dark gray hood
+                hoodShadow: '#1A1A1A',   // Darker shadow
+                vestGray: '#606060',     // Gray vest
+                vestDark: '#404040',     // Dark vest
+                orangeGear: '#FF8800',   // Bright orange
+                pantsGreen: '#5A6B2E',  // Olive green
+                pantsDark: '#454F24',    // Dark green
+                bootsBlack: '#0F0F0F'    // Black boots
+            },
+            // Variant 2: Black Tactical - Darker Ops
+            {
+                skinColor: '#8B4513',     // Dark skin
+                hoodColor: '#1A1A1A',     // Black hood
+                hoodShadow: '#0A0A0A',   // Very dark shadow
+                vestGray: '#3A3A3A',     // Dark gray vest
+                vestDark: '#2A2A2A',     // Very dark vest
+                orangeGear: '#CC6600',   // Dark orange
+                pantsGreen: '#2F3D1A',  // Dark olive
+                pantsDark: '#1F2A10',    // Very dark green
+                bootsBlack: '#050505'    // Very black boots
+            },
+            // Variant 3: Desert Tactical - Sandy/Brown Theme
+            {
+                skinColor: '#A0522D',     // Medium skin
+                hoodColor: '#5D4E37',     // Brown hood
+                hoodShadow: '#4A3C2A',   // Dark brown shadow
+                vestGray: '#8B7355',     // Sandy gray vest
+                vestDark: '#6F5A42',     // Dark brown vest
+                orangeGear: '#FF9933',   // Bright sandy orange
+                pantsGreen: '#6B5B2F',  // Desert green
+                pantsDark: '#544725',    // Dark desert
+                bootsBlack: '#2F1B14'    // Dark brown boots
+            }
         ];
 
         let playerDirection = { x: 0, y: -1 };
@@ -1285,17 +1315,9 @@
         function drawPlayerFrame(drawCtx, x, y, frame, variant, direction = 'down') {
             const size = 2.5; // Slightly larger for better detail
 
-
-            // Exact colors from your tactical character
-            const hoodColor = '#2A2A2A';      // Dark gray hood
-            const hoodShadow = '#1A1A1A';    // Even darker for depth
-            const skinColor = '#D2A679';     // Tan skin
-            const vestGray = '#606060';      // Gray vest
-            const vestDark = '#404040';      // Dark vest areas
-            const orangeGear = '#FF8800';    // Bright orange gear
-            const pantsGreen = '#5A6B2E';    // Olive green pants
-            const pantsDark = '#454F24';     // Dark green shadows
-            const bootsBlack = '#0F0F0F';   // Black boots
+            // Get colors from the selected variant
+            const colors = characterVariants[variant];
+            const { skinColor, hoodColor, hoodShadow, vestGray, vestDark, orangeGear, pantsGreen, pantsDark, bootsBlack } = colors;
 
             // Animation offsets
             const walkCycle = frame % 3;
