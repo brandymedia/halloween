@@ -1452,9 +1452,10 @@
         // Define the walls of the maze
         let walls = [];
         let doors = [];
-        const baseSize = 125; // Reduced by 50% to match wall size
+        const baseSize = 137.5; // Increased by 10% (125 * 1.1)
         const doorSize = 70;
         const wallThickness = 20;
+        const doorThickness = 16; // Thinner than wall thickness for realistic sliding
         
         function createWalls() {
             const w = canvas.width;
@@ -1464,7 +1465,7 @@
             
             const centerX = w / 2;
             const centerY = h / 2;
-            const size = 125; // Reduced by 50% from 250 to 125
+            const size = 137.5; // Increased by 10% (125 * 1.1)
             const wallHalfSize = size / 2;
             const doorOffset = 40;
             const topDoorX = centerX - doorSize / 2;
@@ -1489,13 +1490,15 @@
             ];
 
             // Define the two doors with animation properties
+            // Center doors within wall thickness for realistic appearance
+            const doorYOffset = (wallThickness - doorThickness) / 2;
             doors = [
                 {
-                    x: topDoorX, y: topDoorY, width: doorSize, height: wallThickness,
+                    x: topDoorX, y: topDoorY + doorYOffset, width: doorSize, height: doorThickness,
                     color: doorColor, open: false, openAmount: 0, targetOpen: 0
                 },
                 {
-                    x: bottomDoorX, y: bottomDoorY, width: doorSize, height: wallThickness,
+                    x: bottomDoorX, y: bottomDoorY + doorYOffset, width: doorSize, height: doorThickness,
                     color: doorColor, open: false, openAmount: 0, targetOpen: 0
                 }
             ];
@@ -1540,7 +1543,7 @@
                 const halfWidth = door.width * 0.5;
 
                 // Calculate available wall pocket space on each side
-                const wallGapWidth = (125 - 70) / 2; // (size - doorSize) / 2 = 27.5px
+                const wallGapWidth = (137.5 - 70) / 2; // (size - doorSize) / 2 = 33.75px
                 const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                 const slideDistance = maxSlideDistance * door.openAmount; // Proportional slide distance
                 const panelWidth = halfWidth; // Each panel is always half door width
@@ -1858,7 +1861,7 @@
                 if (door.openAmount < 1) {
                     // Check collision only with visible parts of door panels
                     const halfWidth = door.width * 0.5;
-                    const wallGapWidth = (125 - 70) / 2; // Available wall pocket space
+                    const wallGapWidth = (137.5 - 70) / 2; // Available wall pocket space
                     const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                     const slideDistance = maxSlideDistance * door.openAmount;
                     const panelWidth = halfWidth;
@@ -2078,17 +2081,31 @@
                 player.frame = 0;
             }
 
-            // Boundary checks
-            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+            // Boundary checks - account for zoom transformation
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+
+            // With zoom out, the logical game world is larger than the canvas
+            // The visible area in game coordinates spans from -offsetX to (canvas.width/zoomFactor - offsetX)
+            const gameWorldWidth = canvas.width / zoomFactor;
+            const gameWorldHeight = canvas.height / zoomFactor;
+
+            const minX = -offsetX + player.radius;
+            const maxX = gameWorldWidth - offsetX - player.radius;
+            const minY = -offsetY + player.radius;
+            const maxY = gameWorldHeight - offsetY - player.radius;
+
+            player.x = Math.max(minX, Math.min(maxX, player.x));
+            player.y = Math.max(minY, Math.min(maxY, player.y));
             
             // Door logic with gradual animation
             doors.forEach(door => {
                 const dist = Math.hypot(player.x - (door.x + door.width/2), player.y - (door.y + door.height/2));
                 const wasTargetOpen = door.targetOpen;
 
-                // Determine target state
-                if (dist < player.radius + 30) {
+                // Determine target state - increase detection distance for smoother approach
+                if (dist < player.radius + 60) { // Increased from 30 to 60 pixels
                     door.targetOpen = 1; // Fully open
                     if (wasTargetOpen === 0) {
                         audioManager.playSound('doorOpen'); // Sound when starting to open
@@ -2100,8 +2117,8 @@
                     }
                 }
 
-                // Gradually animate towards target (slower movement)
-                const animationSpeed = 0.025; // Slower animation (was instant)
+                // Fast animation to match player movement speed
+                const animationSpeed = 0.08; // Much faster - doors open in ~12 frames (~0.2 seconds)
                 if (door.openAmount < door.targetOpen) {
                     door.openAmount = Math.min(door.targetOpen, door.openAmount + animationSpeed);
                 } else if (door.openAmount > door.targetOpen) {
@@ -2367,7 +2384,7 @@
                 if (door.openAmount < 1) {
                     // Check collision only with visible parts of door panels
                     const halfWidth = door.width * 0.5;
-                    const wallGapWidth = (125 - 70) / 2; // Available wall pocket space
+                    const wallGapWidth = (137.5 - 70) / 2; // Available wall pocket space
                     const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                     const slideDistance = maxSlideDistance * door.openAmount;
                     const panelWidth = halfWidth;
@@ -2818,19 +2835,12 @@
                 screenShake.x = (Math.random() - 0.5) * shakeAmount * 2;
                 screenShake.y = (Math.random() - 0.5) * shakeAmount * 2;
 
-                // Apply shake by translating canvas context
-                ctx.save();
+                // Apply shake by translating canvas context (no save needed since main loop handles it)
                 ctx.translate(screenShake.x, screenShake.y);
             } else {
                 screenShake.intensity = 0;
                 screenShake.x = 0;
                 screenShake.y = 0;
-            }
-        }
-
-        function endScreenShake() {
-            if (screenShake.duration > 0) {
-                ctx.restore(); // Restore the canvas translation
             }
         }
 
@@ -3796,6 +3806,16 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Save canvas state and apply 25% zoom out
+            ctx.save();
+            const zoomFactor = 0.75; // 25% zoom out
+            ctx.scale(zoomFactor, zoomFactor);
+
+            // Center the scaled content
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            ctx.translate(offsetX, offsetY);
+
             // Apply screen shake
             updateScreenShake();
 
@@ -3882,8 +3902,8 @@
             drawExplosions();
             drawChests();
 
-            // End screen shake (restore canvas if shaking)
-            endScreenShake();
+            // Restore canvas state (remove zoom and translation)
+            ctx.restore();
 
             animationId = requestAnimationFrame(gameLoop);
         }
@@ -3982,8 +4002,16 @@
         
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            const rawX = e.clientX - rect.left;
+            const rawY = e.clientY - rect.top;
+
+            // Adjust for zoom - convert screen coordinates to game world coordinates
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+
+            mouseX = (rawX / zoomFactor) - offsetX;
+            mouseY = (rawY / zoomFactor) - offsetY;
             mouseMoved = true;
         });
 
@@ -4043,9 +4071,13 @@
             touchStartY = touchY;
             touchStartTime = Date.now();
 
-            // Update mouse position for aiming
-            mouseX = touchX;
-            mouseY = touchY;
+            // Update mouse position for aiming - adjust for zoom
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+
+            mouseX = (touchX / zoomFactor) - offsetX;
+            mouseY = (touchY / zoomFactor) - offsetY;
             mouseMoved = true;
 
             // Shoot immediately on touch (will be overridden by swipe if detected)
@@ -4061,8 +4093,13 @@
             e.preventDefault(); // Prevent scrolling
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches[0];
-            mouseX = touch.clientX - rect.left;
-            mouseY = touch.clientY - rect.top;
+            // Adjust for zoom
+            const zoomFactor = 0.75;
+            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
+            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+
+            mouseX = ((touch.clientX - rect.left) / zoomFactor) - offsetX;
+            mouseY = ((touch.clientY - rect.top) / zoomFactor) - offsetY;
             mouseMoved = true;
         });
 
