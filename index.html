@@ -49,15 +49,14 @@
         #game-container {
             position: relative;
             background-color: #333;
-            border: 4px solid #fff;
-            border-radius: 12px;
+            border: 10px solid #fff;
+            border-radius: 10px;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
             overflow: hidden;
             width: 90vw;
-            max-width: 800px;
-            height: calc(90vw * 0.75);
-            max-height: 600px;
+            max-width: 1200px;
             aspect-ratio: 4/3;
+            margin: 50px;
         }
 
         /* Mobile full-screen styles */
@@ -201,7 +200,7 @@
             background-color: rgba(0, 0, 0, 0.8);
             z-index: 10;
             text-align: center;
-            border-radius: 8px;
+            border-radius: 4px;
             display: none;
         }
 
@@ -408,8 +407,8 @@
                     <p>Aim with the mouse and shoot with click or spacebar</p>
                     <p>Collect mystery chests to get more ammo!</p>
                 </div>
-                <div style="font-size: 0.8em; margin: 10px auto;">
-                    <p>Switch weapons: 1 - Pistol | 2 - Shotgun | 3 - Frag Grenade | 4 - Nuke | 5 - Missile</p>
+                <div style="font-size: 0.6em; line-height: 2rem; margin: 5px auto;">
+                    <p>Switch weapons: <br/>1 - Pistol | 2 - Shotgun<br/>3 - Frag Grenade | 4 - Nuke<br/>5 - Missile</p>
                 </div>
             </div>
             <div id="game-over-screen">
@@ -1533,7 +1532,103 @@
         });
 
         resizeCanvas();
-        
+
+        // Global grid system constants
+        const GRID_SIZE = 64; // Match tile size for consistency
+        const OBJECT_GRID_SIZE = 128; // Larger grid for environmental objects
+
+        function drawTerrain() {
+            // Draw background
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(-2000, -2000, 4000, 4000);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#404040';
+            ctx.lineWidth = 1;
+
+            // Draw vertical lines
+            for (let x = -2000; x <= 2000; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, -2000);
+                ctx.lineTo(x, 2000);
+                ctx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let y = -2000; y <= 2000; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(-2000, y);
+                ctx.lineTo(2000, y);
+                ctx.stroke();
+            }
+
+            // Add scattered environmental objects
+            drawEnvironmentalObjects();
+        }
+
+        function drawEnvironmentalObjects() {
+            const area = 1200;
+            const startX = -area / 2;
+            const startY = -area / 2;
+            const objectDensity = 0.6; // Objects per grid cell
+
+            // Align object grid to world coordinates
+            const gridStartX = Math.floor(startX / OBJECT_GRID_SIZE) * OBJECT_GRID_SIZE;
+            const gridStartY = Math.floor(startY / OBJECT_GRID_SIZE) * OBJECT_GRID_SIZE;
+
+            for (let x = gridStartX; x < startX + area; x += OBJECT_GRID_SIZE) {
+                for (let y = gridStartY; y < startY + area; y += OBJECT_GRID_SIZE) {
+                    // Use grid coordinates as seed for consistent placement
+                    const gridX = x / OBJECT_GRID_SIZE;
+                    const gridY = y / OBJECT_GRID_SIZE;
+                    const seed = Math.abs((gridX * 73 + gridY * 37) % 1000);
+
+                    if (seed < objectDensity * 1000) {
+                        // Place object within this grid cell
+                        const objX = x + (seed % (OBJECT_GRID_SIZE - 20)) + 10;
+                        const objY = y + ((seed * 17) % (OBJECT_GRID_SIZE - 20)) + 10;
+
+                        // Different object types based on seed
+                        const objType = seed % 5;
+
+                        if (objType === 0) {
+                            // Small rocks
+                            ctx.fillStyle = '#4a4a4a';
+                            ctx.beginPath();
+                            ctx.arc(objX, objY, 3 + (seed % 4), 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (objType === 1) {
+                            // Debris pieces
+                            ctx.fillStyle = '#3a3a3a';
+                            ctx.fillRect(objX - 2, objY - 2, 4 + (seed % 6), 2 + (seed % 3));
+                        } else if (objType === 2) {
+                            // Dark stains
+                            ctx.fillStyle = '#1a1a1a';
+                            ctx.beginPath();
+                            ctx.arc(objX, objY, 8 + (seed % 12), 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (objType === 3) {
+                            // Small cracks
+                            ctx.strokeStyle = '#1a1a1a';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(objX - 5, objY);
+                            ctx.lineTo(objX + 5 + (seed % 10), objY + (seed % 6) - 3);
+                            ctx.stroke();
+                        } else {
+                            // Scattered rubble clusters
+                            ctx.fillStyle = '#353535';
+                            for (let i = 0; i < 3; i++) {
+                                const rubbleX = objX + (seed * (i + 1) % 16) - 8;
+                                const rubbleY = objY + ((seed * (i + 3)) % 16) - 8;
+                                ctx.fillRect(rubbleX, rubbleY, 2 + (seed % 3), 2 + (seed % 3));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         function drawWalls() {
             // Draw doors FIRST so they appear behind walls
             doors.forEach(door => {
@@ -3854,6 +3949,9 @@
 
             // Apply screen shake
             updateScreenShake();
+
+            // Draw textured ground (inside zoom transformation)
+            drawTerrain();
 
             drawWalls();
 
