@@ -894,6 +894,8 @@
                     nuke: this.createExplosionSound(80, 0.3),
                     missile: this.createMissileSound(),
                     enemyDeath: this.createDeathSound(),
+                    zombieDeath: this.createZombieDeathSound(),
+                    skeletonDeath: this.createSkeletonDeathSound(),
                     playerHit: this.createHitSound(),
                     chestPickup: this.createPickupSound(),
                     buttonClick: this.createClickSound(),
@@ -1629,6 +1631,168 @@
                     });
                     this.currentMusic = null;
                 }
+            }
+
+            createZombieDeathSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.6;
+                    const variation = 0.9 + Math.random() * 0.2;
+
+                    // Layer 1: Bullet piercing flesh - wet, squelching sound
+                    const piercingBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.04, this.audioContext.sampleRate);
+                    const piercingData = piercingBuffer.getChannelData(0);
+                    for (let i = 0; i < piercingData.length; i++) {
+                        const decay = Math.pow(1 - i / piercingData.length, 3);
+                        piercingData[i] = (Math.random() * 2 - 1) * decay * (1 + Math.sin(i * 0.05) * 0.4);
+                    }
+
+                    const piercingSource = this.audioContext.createBufferSource();
+                    const piercingGain = this.audioContext.createGain();
+                    const piercingFilter = this.audioContext.createBiquadFilter();
+
+                    piercingSource.buffer = piercingBuffer;
+                    piercingFilter.type = 'lowpass';
+                    piercingFilter.frequency.setValueAtTime(600, now);
+                    piercingFilter.frequency.exponentialRampToValueAtTime(200, now + 0.04);
+
+                    piercingSource.connect(piercingFilter);
+                    piercingFilter.connect(piercingGain);
+                    piercingGain.connect(this.audioContext.destination);
+
+                    piercingGain.gain.setValueAtTime(baseVolume * 0.8 * variation, now);
+                    piercingGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                    piercingSource.start(now);
+
+                    // Layer 2: Zombie groan/death rattle
+                    const groanOsc = this.audioContext.createOscillator();
+                    const groanGain = this.audioContext.createGain();
+                    const groanFilter = this.audioContext.createBiquadFilter();
+
+                    groanOsc.type = 'sawtooth';
+                    groanOsc.frequency.setValueAtTime(80 + Math.random() * 40, now + 0.02);
+                    groanOsc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+
+                    groanFilter.type = 'lowpass';
+                    groanFilter.frequency.setValueAtTime(300, now + 0.02);
+
+                    groanOsc.connect(groanFilter);
+                    groanFilter.connect(groanGain);
+                    groanGain.connect(this.audioContext.destination);
+
+                    groanGain.gain.setValueAtTime(baseVolume * 0.5 * variation, now + 0.02);
+                    groanGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                    groanOsc.start(now + 0.02);
+                    groanOsc.stop(now + 0.2);
+
+                    // Layer 3: Body thud
+                    const thudOsc = this.audioContext.createOscillator();
+                    const thudGain = this.audioContext.createGain();
+
+                    thudOsc.type = 'sine';
+                    thudOsc.frequency.setValueAtTime(60, now + 0.1);
+                    thudOsc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+
+                    thudOsc.connect(thudGain);
+                    thudGain.connect(this.audioContext.destination);
+
+                    thudGain.gain.setValueAtTime(baseVolume * 0.6 * variation, now + 0.1);
+                    thudGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                    thudOsc.start(now + 0.1);
+                    thudOsc.stop(now + 0.15);
+                };
+            }
+
+            createSkeletonDeathSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.7;
+                    const variation = 0.9 + Math.random() * 0.2;
+
+                    // Layer 1: Bones cracking
+                    const crackBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.08, this.audioContext.sampleRate);
+                    const crackData = crackBuffer.getChannelData(0);
+                    for (let i = 0; i < crackData.length; i++) {
+                        const decay = 1 - (i / crackData.length) * 0.7;
+                        const crack = Math.random() > 0.7 ? (Math.random() * 2 - 1) * 2 : (Math.random() * 2 - 1) * 0.3;
+                        crackData[i] = crack * decay;
+                    }
+
+                    const crackSource = this.audioContext.createBufferSource();
+                    const crackGain = this.audioContext.createGain();
+                    const crackFilter = this.audioContext.createBiquadFilter();
+
+                    crackSource.buffer = crackBuffer;
+                    crackFilter.type = 'highpass';
+                    crackFilter.frequency.setValueAtTime(800, now);
+                    crackFilter.Q.setValueAtTime(2, now);
+
+                    crackSource.connect(crackFilter);
+                    crackFilter.connect(crackGain);
+                    crackGain.connect(this.audioContext.destination);
+
+                    crackGain.gain.setValueAtTime(baseVolume * 1.0 * variation, now);
+                    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    crackSource.start(now);
+
+                    // Layer 2: Multiple bone snaps
+                    for (let i = 0; i < 3; i++) {
+                        const snapOsc = this.audioContext.createOscillator();
+                        const snapGain = this.audioContext.createGain();
+                        const snapFilter = this.audioContext.createBiquadFilter();
+
+                        const startTime = now + (i * 0.02) + Math.random() * 0.01;
+
+                        snapOsc.type = 'square';
+                        snapOsc.frequency.setValueAtTime(1200 + Math.random() * 800, startTime);
+                        snapOsc.frequency.exponentialRampToValueAtTime(400, startTime + 0.015);
+
+                        snapFilter.type = 'bandpass';
+                        snapFilter.frequency.setValueAtTime(1500, startTime);
+                        snapFilter.Q.setValueAtTime(4, startTime);
+
+                        snapOsc.connect(snapFilter);
+                        snapFilter.connect(snapGain);
+                        snapGain.connect(this.audioContext.destination);
+
+                        snapGain.gain.setValueAtTime(baseVolume * 0.4 * variation, startTime);
+                        snapGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.015);
+
+                        snapOsc.start(startTime);
+                        snapOsc.stop(startTime + 0.015);
+                    }
+
+                    // Layer 3: Bones clattering
+                    const clatterBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.12, this.audioContext.sampleRate);
+                    const clatterData = clatterBuffer.getChannelData(0);
+                    for (let i = 0; i < clatterData.length; i++) {
+                        const decay = Math.pow(1 - i / clatterData.length, 1.5);
+                        clatterData[i] = (Math.random() * 2 - 1) * decay * (Math.random() > 0.6 ? 1 : 0.3);
+                    }
+
+                    const clatterSource = this.audioContext.createBufferSource();
+                    const clatterGain = this.audioContext.createGain();
+                    const clatterFilter = this.audioContext.createBiquadFilter();
+
+                    clatterSource.buffer = clatterBuffer;
+                    clatterFilter.type = 'bandpass';
+                    clatterFilter.frequency.setValueAtTime(1000, now + 0.05);
+                    clatterFilter.Q.setValueAtTime(1.5, now + 0.05);
+
+                    clatterSource.connect(clatterFilter);
+                    clatterFilter.connect(clatterGain);
+                    clatterGain.connect(this.audioContext.destination);
+
+                    clatterGain.gain.setValueAtTime(baseVolume * 0.6 * variation, now + 0.05);
+                    clatterGain.gain.exponentialRampToValueAtTime(0.01, now + 0.17);
+                    clatterSource.start(now + 0.05);
+                };
             }
         }
 
@@ -3788,7 +3952,7 @@
                             createDamageNumber(zombie.x, zombie.y - 20, '+3 XP', true, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('zombieDeath');
                             awardXP(3); // Zombie headshot XP
                         }, 0);
                         return; // Prevent body shot from also triggering
@@ -3799,7 +3963,7 @@
                             createDamageNumber(zombie.x, zombie.y - 10, '+1 XP', false, 'zombie');
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('zombieDeath');
                             awardXP(1); // Regular zombie XP
                         }, 0);
                     }
@@ -3819,7 +3983,7 @@
                             createDamageNumber(skeleton.x, skeleton.y - 20, '+5 XP', true, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('skeletonDeath');
                             awardXP(5); // Skeleton headshot XP
                         }, 0);
                         return; // Prevent body shot from also triggering
@@ -3830,7 +3994,7 @@
                             createDamageNumber(skeleton.x, skeleton.y - 10, '+2 XP', false, 'skeleton');
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('skeletonDeath');
                             awardXP(2); // Regular skeleton XP
                         }, 0);
                     }
@@ -3904,7 +4068,7 @@
                             createBloodSplatter(missile.x, missile.y, Math.random() * Math.PI * 2, false);
                             createDamageNumber(zombie.x, zombie.y - 10, '+2 XP', false, 'zombie');
                             zombies.splice(zIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('zombieDeath');
                             awardXP(2); // Explosion kill XP
                         }, 0);
                     }
@@ -3957,7 +4121,7 @@
                             createDamageNumber(zombie.x, zombie.y - 10, '+2 XP', false, 'zombie');
                             fragments.splice(fIndex, 1);
                             zombies.splice(zIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('zombieDeath');
                             awardXP(2); // Explosion kill XP
                         }, 0);
                     }
@@ -3973,7 +4137,7 @@
                             createDamageNumber(skeleton.x, skeleton.y - 10, '+2 XP', false, 'skeleton');
                             fragments.splice(fIndex, 1);
                             skeletons.splice(sIndex, 1);
-                            audioManager.playSound('enemyDeath');
+                            audioManager.playSound('skeletonDeath');
                             awardXP(2); // Explosion kill XP
                         }, 0);
                     }
