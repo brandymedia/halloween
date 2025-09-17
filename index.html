@@ -3267,20 +3267,14 @@
                 bullet.x += bullet.dx;
                 bullet.y += bullet.dy;
             });
-            // Filter bullets using zoomed game world boundaries
-            const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
-            const gameWorldWidth = canvas.width / zoomFactor;
-            const gameWorldHeight = canvas.height / zoomFactor;
-            const minBound = -offsetX - 50; // Extra margin for bullets
-            const maxBoundX = gameWorldWidth - offsetX + 50;
-            const maxBoundY = gameWorldHeight - offsetY + 50;
-
-            playerBullets = playerBullets.filter(bullet =>
-                bullet.x > minBound && bullet.x < maxBoundX &&
-                bullet.y > minBound && bullet.y < maxBoundY
-            );
+            // Filter bullets based on distance from camera (much larger range for camera system)
+            const maxDistance = 2000; // Large range so bullets can travel far from view
+            playerBullets = playerBullets.filter(bullet => {
+                const dx = bullet.x - camera.x;
+                const dy = bullet.y - camera.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < maxDistance;
+            });
         }
         
         function updateEnemyBullets() {
@@ -3288,20 +3282,14 @@
                 bullet.x += bullet.dx;
                 bullet.y += bullet.dy;
             });
-            // Filter enemy bullets using zoomed game world boundaries
-            const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
-            const gameWorldWidth = canvas.width / zoomFactor;
-            const gameWorldHeight = canvas.height / zoomFactor;
-            const minBound = -offsetX - 50; // Extra margin for bullets
-            const maxBoundX = gameWorldWidth - offsetX + 50;
-            const maxBoundY = gameWorldHeight - offsetY + 50;
-
-            enemyBullets = enemyBullets.filter(bullet =>
-                bullet.x > minBound && bullet.x < maxBoundX &&
-                bullet.y > minBound && bullet.y < maxBoundY
-            );
+            // Filter enemy bullets based on distance from camera
+            const maxDistance = 2000; // Large range so bullets can travel far from view
+            enemyBullets = enemyBullets.filter(bullet => {
+                const dx = bullet.x - camera.x;
+                const dy = bullet.y - camera.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < maxDistance;
+            });
         }
 
         function drawBullets() {
@@ -3344,21 +3332,16 @@
                 fragment.y += fragment.dy;
                 fragment.life--;
             });
-            // Filter fragments using zoomed game world boundaries
-            const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
-            const gameWorldWidth = canvas.width / zoomFactor;
-            const gameWorldHeight = canvas.height / zoomFactor;
-            const minBound = -offsetX - 50;
-            const maxBoundX = gameWorldWidth - offsetX + 50;
-            const maxBoundY = gameWorldHeight - offsetY + 50;
+            // Filter fragments based on distance from camera and life
+            const maxDistance = 2000;
+            fragments = fragments.filter(fragment => {
+                if (fragment.life <= 0) return false;
 
-            fragments = fragments.filter(fragment =>
-                fragment.life > 0 &&
-                fragment.x > minBound && fragment.x < maxBoundX &&
-                fragment.y > minBound && fragment.y < maxBoundY
-            );
+                const dx = fragment.x - camera.x;
+                const dy = fragment.y - camera.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < maxDistance;
+            });
         }
 
         function drawFragments() {
