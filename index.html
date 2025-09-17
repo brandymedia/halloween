@@ -1942,9 +1942,9 @@
         let walls = [];
         let doors = [];
         const baseSize = 137.5; // Increased by 10% (125 * 1.1)
-        const doorSize = 70;
-        const wallThickness = 20;
-        const doorThickness = 16; // Thinner than wall thickness for realistic sliding
+        const doorSize = 64; // Grid-aligned: 1 * GRID_SIZE
+        const wallThickness = 16; // Grid-aligned: GRID_SIZE/4
+        const doorThickness = 12; // Thinner than wall thickness for realistic sliding
         
         function createWalls() {
             const w = canvas.width;
@@ -1954,7 +1954,7 @@
             
             const centerX = 0; // Position building at world center
             const centerY = 0;
-            const size = 206.25; // Increased by 50% (137.5 * 1.5)
+            const size = 192; // Grid-aligned: 3 * GRID_SIZE (64) = 192 units
             const wallHalfSize = size / 2;
             const doorOffset = 40;
             const topDoorX = centerX - doorSize / 2;
@@ -2082,19 +2082,25 @@
             ctx.strokeStyle = '#404040';
             ctx.lineWidth = 1;
 
+            // Draw grid lines - offset so (0,0) is CENTER of a grid square, not intersection
+            const gridRange = 2000;
+            const gridOffset = GRID_SIZE / 2; // Offset grid by half tile size
+            const gridStart = Math.floor(-gridRange / GRID_SIZE) * GRID_SIZE - gridOffset;
+            const gridEnd = Math.ceil(gridRange / GRID_SIZE) * GRID_SIZE - gridOffset;
+
             // Draw vertical lines
-            for (let x = -2000; x <= 2000; x += GRID_SIZE) {
+            for (let x = gridStart; x <= gridEnd; x += GRID_SIZE) {
                 ctx.beginPath();
-                ctx.moveTo(x, -2000);
-                ctx.lineTo(x, 2000);
+                ctx.moveTo(x, -gridRange);
+                ctx.lineTo(x, gridRange);
                 ctx.stroke();
             }
 
             // Draw horizontal lines
-            for (let y = -2000; y <= 2000; y += GRID_SIZE) {
+            for (let y = gridStart; y <= gridEnd; y += GRID_SIZE) {
                 ctx.beginPath();
-                ctx.moveTo(-2000, y);
-                ctx.lineTo(2000, y);
+                ctx.moveTo(-gridRange, y);
+                ctx.lineTo(gridRange, y);
                 ctx.stroke();
             }
 
@@ -2174,7 +2180,7 @@
                 const halfWidth = door.width * 0.5;
 
                 // Calculate available wall pocket space on each side
-                const wallGapWidth = (137.5 - 70) / 2; // (size - doorSize) / 2 = 33.75px
+                const wallGapWidth = (192 - 64) / 2; // (size - doorSize) / 2 = 64px
                 const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                 const slideDistance = maxSlideDistance * door.openAmount; // Proportional slide distance
                 const panelWidth = halfWidth; // Each panel is always half door width
@@ -2492,7 +2498,7 @@
                 if (door.openAmount < 1) {
                     // Check collision only with visible parts of door panels
                     const halfWidth = door.width * 0.5;
-                    const wallGapWidth = (137.5 - 70) / 2; // Available wall pocket space
+                    const wallGapWidth = (192 - 64) / 2; // Available wall pocket space
                     const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                     const slideDistance = maxSlideDistance * door.openAmount;
                     const panelWidth = halfWidth;
@@ -2969,7 +2975,7 @@
             lastZombieSpawn = Date.now();
 
             let x, y;
-            const buildingSize = 206.25;
+            const buildingSize = 192; // Grid-aligned building size
             const buildingHalfSize = buildingSize / 2;
             const worldSize = 1000; // Spawn within 1000 units from center
             const playerSafeDistance = 200; // Safe distance around player
@@ -3000,7 +3006,7 @@
             lastSkeletonSpawn = Date.now();
 
             let x, y;
-            const buildingSize = 206.25;
+            const buildingSize = 192; // Grid-aligned building size
             const buildingHalfSize = buildingSize / 2;
             const worldSize = 1000; // Spawn within 1000 units from center
             const playerSafeDistance = 200; // Safe distance around player
@@ -3040,7 +3046,7 @@
                 if (door.openAmount < 1) {
                     // Check collision only with visible parts of door panels
                     const halfWidth = door.width * 0.5;
-                    const wallGapWidth = (137.5 - 70) / 2; // Available wall pocket space
+                    const wallGapWidth = (192 - 64) / 2; // Available wall pocket space
                     const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
                     const slideDistance = maxSlideDistance * door.openAmount;
                     const panelWidth = halfWidth;
