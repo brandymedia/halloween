@@ -503,9 +503,12 @@
             ctx.textBaseline = 'top';
 
             // Initialize game elements
-            if (typeof createWalls === 'function') createWalls();
+            if (typeof createWalls === 'function') {
+                createWalls();
+                generateDemoStructures();
+            }
             if (typeof player !== 'undefined') {
-                player.x = 0; // Start at world center
+                player.x = 0; // Start at grid-aligned building center
                 player.y = 0;
                 initializeCamera(); // Initialize camera system
             }
@@ -1973,7 +1976,7 @@
             const wallColor = '#b0b0b0'; 
             const doorColor = '#8c8c8c';
             
-            const centerX = 0; // Position building at world center
+            const centerX = 0; // Position building at world center (0,0 should be grid center)
             const centerY = 0;
             const size = 192; // Grid-aligned: 3 * GRID_SIZE (64) = 192 units
             const wallHalfSize = size / 2;
@@ -2023,7 +2026,8 @@
             ctx.textAlign = 'start';
             ctx.textBaseline = 'top';
             createWalls();
-            player.x = 0; // Keep at world center
+            generateDemoStructures();
+            player.x = 0; // Keep at grid-aligned building center
             player.y = 0;
             initializeCamera(); // Reinitialize camera on resize
         }
@@ -2046,6 +2050,304 @@
         // Global grid system constants
         const GRID_SIZE = 64; // Match tile size for consistency
         const OBJECT_GRID_SIZE = 128; // Larger grid for environmental objects
+
+        // Enhanced Grid System
+        const GridSystem = {
+            // Snap coordinates to grid centers (accounting for grid offset)
+            snapToGrid: function(x, y, gridSize = GRID_SIZE) {
+                // Snap to grid centers (multiples of gridSize: 0, 64, 128, 192, 256...)
+                return {
+                    x: Math.round(x / gridSize) * gridSize,
+                    y: Math.round(y / gridSize) * gridSize
+                };
+            },
+
+            // Get grid coordinates from world coordinates
+            worldToGrid: function(x, y, gridSize = GRID_SIZE) {
+                return {
+                    gridX: Math.floor((x + gridSize/2) / gridSize),
+                    gridY: Math.floor((y + gridSize/2) / gridSize)
+                };
+            },
+
+            // Get world coordinates from grid coordinates
+            gridToWorld: function(gridX, gridY, gridSize = GRID_SIZE) {
+                return {
+                    x: gridX * gridSize,
+                    y: gridY * gridSize
+                };
+            },
+
+            // Check if a grid cell is occupied
+            isGridCellOccupied: function(gridX, gridY, occupiedCells = new Set()) {
+                return occupiedCells.has(`${gridX},${gridY}`);
+            },
+
+            // Find nearest empty grid cell
+            findNearestEmptyCell: function(x, y, occupiedCells = new Set(), gridSize = GRID_SIZE, maxRadius = 5) {
+                const startGrid = this.worldToGrid(x, y, gridSize);
+
+                // Check center first
+                if (!this.isGridCellOccupied(startGrid.gridX, startGrid.gridY, occupiedCells)) {
+                    return this.gridToWorld(startGrid.gridX, startGrid.gridY, gridSize);
+                }
+
+                // Spiral search outward
+                for (let radius = 1; radius <= maxRadius; radius++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        for (let dy = -radius; dy <= radius; dy++) {
+                            if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
+                                const testX = startGrid.gridX + dx;
+                                const testY = startGrid.gridY + dy;
+                                if (!this.isGridCellOccupied(testX, testY, occupiedCells)) {
+                                    return this.gridToWorld(testX, testY, gridSize);
+                                }
+                            }
+                        }
+                    }
+                }
+                return null; // No empty cell found
+            },
+
+            // Create aligned rectangle (for buildings, walls, etc.)
+            createAlignedRect: function(centerX, centerY, width, height, gridSize = GRID_SIZE) {
+                const snapped = this.snapToGrid(centerX, centerY, gridSize);
+                return {
+                    x: snapped.x - width/2,
+                    y: snapped.y - height/2,
+                    width: width,
+                    height: height,
+                    centerX: snapped.x,
+                    centerY: snapped.y
+                };
+            }
+        };
+
+        // Structure Generation System
+        const StructureGenerator = {
+            // Create a simple rectangular building
+            createBuilding: function(centerX, centerY, widthCells, heightCells, options = {}) {
+                const {
+                    wallThickness = 16,
+                    doorWidth = 64,
+                    doorSides = ['top'], // 'top', 'bottom', 'left', 'right'
+                    wallColor = '#b0b0b0',
+                    doorColor = '#8c8c8c'
+                } = options;
+
+                const width = widthCells * GRID_SIZE;
+                const height = heightCells * GRID_SIZE;
+                const rect = GridSystem.createAlignedRect(centerX, centerY, width, height);
+
+                const walls = [];
+                const doors = [];
+
+                // Create walls with door gaps
+                doorSides.forEach(side => {
+                    const doorOffset = (width - doorWidth) / 2;
+
+                    switch(side) {
+                        case 'top':
+                            // Top wall with door gap
+                            walls.push({
+                                x: rect.x, y: rect.y,
+                                width: doorOffset, height: wallThickness,
+                                color: wallColor
+                            });
+                            walls.push({
+                                x: rect.x + doorOffset + doorWidth, y: rect.y,
+                                width: doorOffset, height: wallThickness,
+                                color: wallColor
+                            });
+                            doors.push({
+                                x: rect.x + doorOffset, y: rect.y + (wallThickness - 12) / 2,
+                                width: doorWidth, height: 12,
+                                color: doorColor, open: false, openAmount: 0, targetOpen: 0
+                            });
+                            break;
+
+                        case 'bottom':
+                            // Bottom wall with door gap
+                            walls.push({
+                                x: rect.x, y: rect.y + height - wallThickness,
+                                width: doorOffset, height: wallThickness,
+                                color: wallColor
+                            });
+                            walls.push({
+                                x: rect.x + doorOffset + doorWidth, y: rect.y + height - wallThickness,
+                                width: doorOffset, height: wallThickness,
+                                color: wallColor
+                            });
+                            doors.push({
+                                x: rect.x + doorOffset, y: rect.y + height - wallThickness + (wallThickness - 12) / 2,
+                                width: doorWidth, height: 12,
+                                color: doorColor, open: false, openAmount: 0, targetOpen: 0
+                            });
+                            break;
+                    }
+                });
+
+                // Always add left and right walls (full height)
+                walls.push({
+                    x: rect.x, y: rect.y,
+                    width: wallThickness, height: height,
+                    color: wallColor
+                });
+                walls.push({
+                    x: rect.x + width - wallThickness, y: rect.y,
+                    width: wallThickness, height: height,
+                    color: wallColor
+                });
+
+                return { walls, doors, bounds: rect };
+            },
+
+            // Create a defensive wall segment
+            createWallSegment: function(startX, startY, endX, endY, thickness = 32) {
+                const startSnapped = GridSystem.snapToGrid(startX, startY);
+                const endSnapped = GridSystem.snapToGrid(endX, endY);
+
+                const dx = endSnapped.x - startSnapped.x;
+                const dy = endSnapped.y - startSnapped.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length === 0) return [];
+
+                // Create wall segments only at grid centers along the line
+                const segments = [];
+
+                // Determine if this is horizontal or vertical wall
+                const isHorizontal = Math.abs(dx) > Math.abs(dy);
+
+                if (isHorizontal) {
+                    // Horizontal wall - place segments at grid centers along X axis
+                    const y = startSnapped.y;
+                    const startX = Math.min(startSnapped.x, endSnapped.x);
+                    const endX = Math.max(startSnapped.x, endSnapped.x);
+
+                    for (let x = startX; x <= endX; x += GRID_SIZE) {
+                        segments.push({
+                            x: x - thickness/2,
+                            y: y - thickness/2,
+                            width: thickness,
+                            height: thickness,
+                            color: '#999999'
+                        });
+                    }
+                } else {
+                    // Vertical wall - place segments at grid centers along Y axis
+                    const x = startSnapped.x;
+                    const startY = Math.min(startSnapped.y, endSnapped.y);
+                    const endY = Math.max(startSnapped.y, endSnapped.y);
+
+                    for (let y = startY; y <= endY; y += GRID_SIZE) {
+                        segments.push({
+                            x: x - thickness/2,
+                            y: y - thickness/2,
+                            width: thickness,
+                            height: thickness,
+                            color: '#999999'
+                        });
+                    }
+                }
+
+                return segments;
+            },
+
+            // Create a watchtower
+            createWatchtower: function(centerX, centerY) {
+                const baseSize = GRID_SIZE * 2; // 2x2 grid cells
+                const towerHeight = GRID_SIZE * 3; // 3 cells high
+
+                const base = GridSystem.createAlignedRect(centerX, centerY, baseSize, baseSize);
+                const walls = [];
+
+                // Base walls
+                walls.push({
+                    x: base.x, y: base.y,
+                    width: baseSize, height: 16,
+                    color: '#8B4513' // Brown
+                });
+                walls.push({
+                    x: base.x, y: base.y + baseSize - 16,
+                    width: baseSize, height: 16,
+                    color: '#8B4513'
+                });
+                walls.push({
+                    x: base.x, y: base.y,
+                    width: 16, height: baseSize,
+                    color: '#8B4513'
+                });
+                walls.push({
+                    x: base.x + baseSize - 16, y: base.y,
+                    width: 16, height: baseSize,
+                    color: '#8B4513'
+                });
+
+                // Tower structure (visual indicator - could be enhanced)
+                walls.push({
+                    x: base.centerX - 8, y: base.centerY - towerHeight/2,
+                    width: 16, height: towerHeight,
+                    color: '#654321' // Darker brown for tower
+                });
+
+                return { walls, bounds: base };
+            }
+        };
+
+        // Demo structures - using the new grid system
+        function generateDemoStructures() {
+            const additionalWalls = [];
+
+            // Create a secondary building to the north (coordinates will be snapped to grid centers)
+            const northBuilding = StructureGenerator.createBuilding(0, 0, 5, 5, {
+                doorSides: ['bottom'],
+                wallColor: '#8B7D6B', // Tan color
+                doorColor: '#6B5B47'
+            });
+            additionalWalls.push(...northBuilding.walls);
+            doors.push(...northBuilding.doors);
+
+            // Create a watchtower to the east (coordinates will be snapped to grid centers)
+            const eastTower = StructureGenerator.createWatchtower(256, 0);
+            additionalWalls.push(...eastTower.walls);
+
+            // Create defensive wall segments (coordinates will be snapped to grid centers)
+            const wallSegments = [
+                StructureGenerator.createWallSegment(-64, 128, 192, 128), // South wall (y=128 is grid center)
+                StructureGenerator.createWallSegment(-64, -64, -64, 128), // West wall (x=-64 is grid center)
+                StructureGenerator.createWallSegment(192, -64, 192, 128)   // East wall (x=192 is grid center)
+            ];
+
+            wallSegments.forEach(segments => {
+                additionalWalls.push(...segments);
+            });
+
+            // Add all new walls to the global walls array
+            walls.push(...additionalWalls);
+
+            console.log('Generated demo structures:', {
+                northBuilding: northBuilding.bounds,
+                eastTower: eastTower.bounds,
+                totalWalls: walls.length,
+                totalDoors: doors.length
+            });
+
+            // Debug: Check if coordinates are properly aligned
+            console.log('Grid alignment check:');
+            console.log('North building center should snap from (0, -288) to:', GridSystem.snapToGrid(0, -288));
+            console.log('East tower center should snap from (288, 0) to:', GridSystem.snapToGrid(288, 0));
+            console.log('GRID_SIZE:', GRID_SIZE);
+            console.log('Grid centers near origin:', [
+                GridSystem.snapToGrid(-96, 0),
+                GridSystem.snapToGrid(-32, 0),
+                GridSystem.snapToGrid(32, 0),
+                GridSystem.snapToGrid(96, 0),
+                GridSystem.snapToGrid(160, 0),
+                GridSystem.snapToGrid(224, 0),
+                GridSystem.snapToGrid(288, 0)
+            ]);
+        }
 
         // Camera system - Among Us style follow camera
         const camera = {
@@ -2116,8 +2418,8 @@
             // Draw grid lines - offset so (0,0) is CENTER of a grid square, not intersection
             const gridRange = 2000;
             const gridOffset = GRID_SIZE / 2; // Offset grid by half tile size
-            const gridStart = Math.floor(-gridRange / GRID_SIZE) * GRID_SIZE - gridOffset;
-            const gridEnd = Math.ceil(gridRange / GRID_SIZE) * GRID_SIZE - gridOffset;
+            const gridStart = Math.floor(-gridRange / GRID_SIZE) * GRID_SIZE + gridOffset;
+            const gridEnd = Math.ceil(gridRange / GRID_SIZE) * GRID_SIZE + gridOffset;
 
             // Draw vertical lines
             for (let x = gridStart; x <= gridEnd; x += GRID_SIZE) {
@@ -4276,7 +4578,7 @@
             damageNumbers = [];
             screenShake = { intensity: 0, duration: 0, x: 0, y: 0 };
             ammo = { ...maxAmmo };
-            player.x = 0; // Reset to world center
+            player.x = 0; // Reset to grid-aligned building center
             player.y = 0;
             initializeCamera(); // Reset camera on game restart
             updateSessionXPDisplay();
