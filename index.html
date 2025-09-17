@@ -2297,10 +2297,12 @@
 
         // Demo structures - using the new grid system
         function generateDemoStructures() {
+            // Temporarily disabled demo structures for testing
+            /*
             const additionalWalls = [];
 
             // Create a secondary building to the north (coordinates will be snapped to grid centers)
-            const northBuilding = StructureGenerator.createBuilding(0, 0, 5, 5, {
+            const northBuilding = StructureGenerator.createBuilding(0, -256, 4, 3, {
                 doorSides: ['bottom'],
                 wallColor: '#8B7D6B', // Tan color
                 doorColor: '#6B5B47'
@@ -2325,7 +2327,10 @@
 
             // Add all new walls to the global walls array
             walls.push(...additionalWalls);
+            */
 
+            // Debug logging temporarily disabled with demo structures
+            /*
             console.log('Generated demo structures:', {
                 northBuilding: northBuilding.bounds,
                 eastTower: eastTower.bounds,
@@ -2347,6 +2352,7 @@
                 GridSystem.snapToGrid(224, 0),
                 GridSystem.snapToGrid(288, 0)
             ]);
+            */
         }
 
         // Camera system - Among Us style follow camera
