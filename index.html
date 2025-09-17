@@ -820,6 +820,27 @@
         let gamepadAimX = 0;
         let gamepadAimY = 0;
 
+        // Gamepad Vibration System
+        function vibrateGamepad(weakMagnitude = 0.0, strongMagnitude = 0.0, duration = 200) {
+            if (!gamepad || !gamepad.vibrationActuator) return;
+
+            try {
+                // Clamp values between 0.0 and 1.0
+                weakMagnitude = Math.max(0.0, Math.min(1.0, weakMagnitude));
+                strongMagnitude = Math.max(0.0, Math.min(1.0, strongMagnitude));
+
+                gamepad.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: duration,
+                    weakMagnitude: weakMagnitude,     // High frequency (subtle)
+                    strongMagnitude: strongMagnitude  // Low frequency (strong)
+                });
+            } catch (error) {
+                // Vibration not supported or failed - silently ignore
+                console.log('Gamepad vibration not supported:', error.message);
+            }
+        }
+
         // Menu navigation with controller
         let selectedCharacter = 0; // 0, 1, or 2 for char1, char2, char3
         let isInMenu = true;
@@ -3650,6 +3671,7 @@
                 ammo.pistol--;
                 audioManager.playSound('pistol');
                 createMuzzleFlash(player.x, player.y, angle, 'pistol');
+                vibrateGamepad(0.1, 0.2, 100); // Light vibration for pistol
                 const speed = 10;
                 playerBullets.push({
                     x: player.x,
@@ -3665,6 +3687,7 @@
                 audioManager.playSound('shotgun');
                 createMuzzleFlash(player.x, player.y, angle, 'shotgun');
                 addScreenShake(3, 100); // Subtle shake for shotgun recoil
+                vibrateGamepad(0.3, 0.6, 150); // Strong vibration for shotgun
                 const speed = 8;
                 const spreadAngle = Math.PI / 16;
                 for (let i = -2; i <= 2; i++) {
@@ -3684,6 +3707,7 @@
                 audioManager.playSound('assaultRifle');
                 createMuzzleFlash(player.x, player.y, angle, 'assaultRifle');
                 addScreenShake(2, 50); // Light shake for assault rifle
+                vibrateGamepad(0.15, 0.25, 80); // Rapid light vibration for assault rifle
                 const speed = 12;
                 playerBullets.push({
                     x: player.x,
@@ -3699,6 +3723,7 @@
                 audioManager.playSound('fragGrenade');
                 createMuzzleFlash(player.x, player.y, angle, 'fragGrenade');
                 addScreenShake(8, 200); // Medium shake for frag grenade
+                vibrateGamepad(0.4, 0.7, 250); // Strong explosion vibration
 
                 // Create 20 lethal fragments in all directions
                 const speed = 12;
@@ -3720,6 +3745,7 @@
                 audioManager.playSound('nuke');
                 createMuzzleFlash(player.x, player.y, angle, 'nuke');
                 addScreenShake(15, 400); // Strong shake for nuke
+                vibrateGamepad(0.8, 1.0, 500); // Maximum nuclear explosion vibration
 
                 // Calculate nuke target position based on aim direction
                 const nukeRange = 200; // Distance from player
@@ -4330,6 +4356,7 @@
                     createDamageNumber(player.x, player.y - 30, 'SHIELD BLOCKED!', false, 'loot');
                     audioManager.playSound('playerHit');
                     addScreenShake(4, 100); // Reduced shake for blocked damage
+                    vibrateGamepad(0.2, 0.3, 150); // Light vibration for shield block
                     invincibilityFrames = invincibilityDuration;
                     return;
                 }
@@ -4339,6 +4366,7 @@
                 updateHealthDisplay();
                 audioManager.playSound('playerHit');
                 addScreenShake(8, 200);
+                vibrateGamepad(0.5, 0.8, 300); // Strong vibration for taking damage
 
                 // Add visual feedback for taking damage
                 addPlayerDamageEffect();
