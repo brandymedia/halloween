@@ -845,12 +845,12 @@
         };
         
         let lastZombieSpawn = 0;
-        const ZOMBIE_SPAWN_INTERVAL = 1000;
+        const ZOMBIE_SPAWN_INTERVAL = 3000;
         const ZOMBIE_ANIM_SPEED = 150;
         const PLAYER_ANIM_SPEED = 100;
         
         let lastSkeletonSpawn = 0;
-        const SKELETON_SPAWN_INTERVAL = 5000;
+        const SKELETON_SPAWN_INTERVAL = 8000;
         const SKELETON_ANIM_SPEED = 150;
         
         let lastChestSpawn = 0;
@@ -1954,7 +1954,7 @@
             
             const centerX = 0; // Position building at world center
             const centerY = 0;
-            const size = 137.5; // Increased by 10% (125 * 1.1)
+            const size = 206.25; // Increased by 50% (137.5 * 1.5)
             const wallHalfSize = size / 2;
             const doorOffset = 40;
             const topDoorX = centerX - doorSize / 2;
@@ -2734,9 +2734,49 @@
                         audioManager.playSound('doorOpen'); // Sound when starting to open
                     }
                 } else {
-                    door.targetOpen = 0; // Fully closed
-                    if (wasTargetOpen === 1) {
-                        audioManager.playSound('doorOpen'); // Sound when starting to close
+                    // Check if any enemies are in the doorway before closing
+                    let enemyInDoorway = false;
+
+                    // Check zombies
+                    for (const zombie of zombies) {
+                        if (zombie.x + zombie.size > door.x && zombie.x - zombie.size < door.x + door.width &&
+                            zombie.y + zombie.size > door.y && zombie.y - zombie.size < door.y + door.height) {
+                            enemyInDoorway = true;
+                            // Push enemy to the outside (away from building center)
+                            const centerX = 0, centerY = 0; // Building center
+                            const directionX = zombie.x - centerX;
+                            const directionY = zombie.y - centerY;
+                            const length = Math.sqrt(directionX * directionX + directionY * directionY);
+                            if (length > 0) {
+                                zombie.x = centerX + (directionX / length) * 100; // Push 100px away from center
+                                zombie.y = centerY + (directionY / length) * 100;
+                            }
+                        }
+                    }
+
+                    // Check skeletons
+                    for (const skeleton of skeletons) {
+                        if (skeleton.x + skeleton.size > door.x && skeleton.x - skeleton.size < door.x + door.width &&
+                            skeleton.y + skeleton.size > door.y && skeleton.y - skeleton.size < door.y + door.height) {
+                            enemyInDoorway = true;
+                            // Push enemy to the outside (away from building center)
+                            const centerX = 0, centerY = 0; // Building center
+                            const directionX = skeleton.x - centerX;
+                            const directionY = skeleton.y - centerY;
+                            const length = Math.sqrt(directionX * directionX + directionY * directionY);
+                            if (length > 0) {
+                                skeleton.x = centerX + (directionX / length) * 100; // Push 100px away from center
+                                skeleton.y = centerY + (directionY / length) * 100;
+                            }
+                        }
+                    }
+
+                    // Only close door if no enemies are in the way
+                    if (!enemyInDoorway) {
+                        door.targetOpen = 0; // Fully closed
+                        if (wasTargetOpen === 1) {
+                            audioManager.playSound('doorOpen'); // Sound when starting to close
+                        }
                     }
                 }
 
@@ -2930,23 +2970,20 @@
             lastZombieSpawn = Date.now();
 
             let x, y;
-            const padding = 20;
-            const edge = Math.random() * 4;
+            const buildingSize = 206.25;
+            const buildingHalfSize = buildingSize / 2;
+            const worldSize = 1000; // Spawn within 1000 units from center
+            const playerSafeDistance = 200; // Safe distance around player
 
-            if (edge < 1) { // Top
-                x = Math.random() * canvas.width;
-                y = -padding;
-            } else if (edge < 2) { // Right
-                x = canvas.width + padding;
-                y = Math.random() * canvas.height;
-            } else if (edge < 3) { // Bottom
-                x = Math.random() * canvas.width;
-                y = canvas.height + padding;
-            } else { // Left
-                x = -padding;
-                y = Math.random() * canvas.height;
-            }
-            
+            // Generate random position anywhere in world, but not inside building or near player
+            let distToPlayer;
+            do {
+                x = (Math.random() - 0.5) * worldSize * 2;
+                y = (Math.random() - 0.5) * worldSize * 2;
+                distToPlayer = Math.sqrt((x - player.x) * (x - player.x) + (y - player.y) * (y - player.y));
+            } while ((Math.abs(x) < buildingHalfSize + 50 && Math.abs(y) < buildingHalfSize + 50) ||
+                     distToPlayer < playerSafeDistance);
+
             zombies.push({
                 x, y,
                 size: 15,
@@ -2962,24 +2999,21 @@
             if (skeletons.length >= MAX_SKELETONS) return;
             if (Date.now() - lastSkeletonSpawn < SKELETON_SPAWN_INTERVAL) return;
             lastSkeletonSpawn = Date.now();
-            
+
             let x, y;
-            const padding = 20;
-            const edge = Math.random() * 4;
-            
-            if (edge < 1) { // Top
-                x = Math.random() * canvas.width;
-                y = -padding;
-            } else if (edge < 2) { // Right
-                x = canvas.width + padding;
-                y = Math.random() * canvas.height;
-            } else if (edge < 3) { // Bottom
-                x = Math.random() * canvas.width;
-                y = canvas.height + padding;
-            } else { // Left
-                x = -padding;
-                y = Math.random() * canvas.height;
-            }
+            const buildingSize = 206.25;
+            const buildingHalfSize = buildingSize / 2;
+            const worldSize = 1000; // Spawn within 1000 units from center
+            const playerSafeDistance = 200; // Safe distance around player
+
+            // Generate random position anywhere in world, but not inside building or near player
+            let distToPlayer;
+            do {
+                x = (Math.random() - 0.5) * worldSize * 2;
+                y = (Math.random() - 0.5) * worldSize * 2;
+                distToPlayer = Math.sqrt((x - player.x) * (x - player.x) + (y - player.y) * (y - player.y));
+            } while ((Math.abs(x) < buildingHalfSize + 50 && Math.abs(y) < buildingHalfSize + 50) ||
+                     distToPlayer < playerSafeDistance);
 
             skeletons.push({
                 x, y,
@@ -4561,6 +4595,10 @@
 
         window.onload = function() {
             resizeCanvas();
+            // Ensure player is centered and camera is properly initialized
+            player.x = 0;
+            player.y = 0;
+            initializeCamera();
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
             highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
