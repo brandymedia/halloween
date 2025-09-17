@@ -2889,38 +2889,37 @@
             // Note: Don't reset aim here - let it persist until movement stick is used
 
             // Right Trigger or A button - Shooting
-            const shootTrigger = getButtonHeld(7); // RT button
+            const shootTriggerPressed = getButtonPressed(7); // RT button (single press)
+            const shootTriggerHeld = getButtonHeld(7); // RT button (held down)
             const shootA = getButtonPressed(0); // A button for single shots
 
-            if (shootTrigger || shootA) { // RT button or A button
-                if (currentWeapon === 'assaultRifle') {
-                    // Handle automatic firing for assault rifle (only with RT trigger, not A)
-                    if (shootTrigger && !autoFireInterval) {
-                        shoot(0, 0); // Will use gamepad aim direction
-                        autoFireInterval = setInterval(() => {
-                            if (getButtonHeld(7) && currentWeapon === 'assaultRifle') {
-                                shoot(0, 0);
-                            } else {
-                                clearInterval(autoFireInterval);
-                                autoFireInterval = null;
-                            }
-                        }, ASSAULT_RIFLE_FIRE_RATE);
-                    } else if (shootA) {
-                        // A button fires single shots even for assault rifle
-                        shoot(0, 0);
-                    }
-                } else {
-                    // Single shot weapons work with both RT and A button
-                    if (getButtonPressed(7) || shootA) {
-                        shoot(0, 0);
-                    }
+            if (currentWeapon === 'assaultRifle') {
+                // Handle automatic firing for assault rifle (only with RT trigger held, not A)
+                if (shootTriggerHeld && !autoFireInterval) {
+                    shoot(0, 0); // Will use gamepad aim direction
+                    autoFireInterval = setInterval(() => {
+                        if (getButtonHeld(7) && currentWeapon === 'assaultRifle') {
+                            shoot(0, 0);
+                        } else {
+                            clearInterval(autoFireInterval);
+                            autoFireInterval = null;
+                        }
+                    }, ASSAULT_RIFLE_FIRE_RATE);
+                } else if (shootA) {
+                    // A button fires single shots even for assault rifle
+                    shoot(0, 0);
                 }
             } else {
-                // Stop automatic firing when trigger is released
-                if (autoFireInterval) {
-                    clearInterval(autoFireInterval);
-                    autoFireInterval = null;
+                // Single shot weapons work with both RT trigger press and A button
+                if (shootTriggerPressed || shootA) {
+                    shoot(0, 0);
                 }
+            }
+
+            // Stop automatic firing when trigger is released
+            if (!shootTriggerHeld && autoFireInterval) {
+                clearInterval(autoFireInterval);
+                autoFireInterval = null;
             }
 
             // Weapon switching with shoulder buttons
