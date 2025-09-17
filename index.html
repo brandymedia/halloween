@@ -505,8 +505,9 @@
             // Initialize game elements
             if (typeof createWalls === 'function') createWalls();
             if (typeof player !== 'undefined') {
-                player.x = canvas.width / 2;
-                player.y = canvas.height / 2;
+                player.x = 0; // Start at world center
+                player.y = 0;
+                initializeCamera(); // Initialize camera system
             }
         }
 
@@ -1512,8 +1513,9 @@
             ctx.textAlign = 'start';
             ctx.textBaseline = 'top';
             createWalls();
-            player.x = canvas.width / 2;
-            player.y = canvas.height / 2;
+            player.x = 0; // Keep at world center
+            player.y = 0;
+            initializeCamera(); // Reinitialize camera on resize
         }
         window.addEventListener('resize', resizeCanvas);
 
@@ -1531,11 +1533,56 @@
             }
         });
 
-        resizeCanvas();
-
         // Global grid system constants
         const GRID_SIZE = 64; // Match tile size for consistency
         const OBJECT_GRID_SIZE = 128; // Larger grid for environmental objects
+
+        // Camera system - Among Us style follow camera
+        const camera = {
+            x: 0, // Current camera world position
+            y: 0,
+            targetX: 0, // Where camera wants to be
+            targetY: 0,
+            deadZoneRadius: 80, // Player can move this far from center before camera follows
+            followSpeed: 0.1, // How smoothly camera catches up (0.05 = slow, 0.2 = fast)
+            screenCenterX: 0, // Screen center coordinates (updated on resize)
+            screenCenterY: 0
+        };
+
+        resizeCanvas();
+
+        // Initialize camera to player position
+        function initializeCamera() {
+            if (typeof camera === 'undefined' || typeof player === 'undefined') return;
+            camera.screenCenterX = canvas.width / 2;
+            camera.screenCenterY = canvas.height / 2;
+            camera.x = player.x;
+            camera.y = player.y;
+            camera.targetX = player.x;
+            camera.targetY = player.y;
+        }
+
+        // Update camera to follow player with dead zone
+        function updateCamera() {
+            if (typeof camera === 'undefined' || typeof player === 'undefined') return;
+
+            // Calculate distance from player to current camera target
+            const dx = player.x - camera.targetX;
+            const dy = player.y - camera.targetY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If player is outside dead zone, move camera target
+            if (distance > camera.deadZoneRadius) {
+                const angle = Math.atan2(dy, dx);
+                // Move target to edge of dead zone in direction of player
+                camera.targetX = player.x - Math.cos(angle) * camera.deadZoneRadius;
+                camera.targetY = player.y - Math.sin(angle) * camera.deadZoneRadius;
+            }
+
+            // Smoothly move camera towards target (lerp)
+            camera.x += (camera.targetX - camera.x) * camera.followSpeed;
+            camera.y += (camera.targetY - camera.y) * camera.followSpeed;
+        }
 
         function drawTerrain() {
             // Draw background
@@ -2176,20 +2223,12 @@
                 player.frame = 0;
             }
 
-            // Boundary checks - account for zoom transformation
-            const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
-
-            // With zoom out, the logical game world is larger than the canvas
-            // The visible area in game coordinates spans from -offsetX to (canvas.width/zoomFactor - offsetX)
-            const gameWorldWidth = canvas.width / zoomFactor;
-            const gameWorldHeight = canvas.height / zoomFactor;
-
-            const minX = -offsetX + player.radius;
-            const maxX = gameWorldWidth - offsetX - player.radius;
-            const minY = -offsetY + player.radius;
-            const maxY = gameWorldHeight - offsetY - player.radius;
+            // World boundary checks - large world boundaries
+            const worldSize = 1500; // Large world, camera will keep player visible
+            const minX = -worldSize + player.radius;
+            const maxX = worldSize - player.radius;
+            const minY = -worldSize + player.radius;
+            const maxY = worldSize - player.radius;
 
             player.x = Math.max(minX, Math.min(maxX, player.x));
             player.y = Math.max(minY, Math.min(maxY, player.y));
@@ -3684,8 +3723,9 @@
             damageNumbers = [];
             screenShake = { intensity: 0, duration: 0, x: 0, y: 0 };
             ammo = { ...maxAmmo };
-            player.x = canvas.width / 2;
-            player.y = canvas.height / 2;
+            player.x = 0; // Reset to world center
+            player.y = 0;
+            initializeCamera(); // Reset camera on game restart
             updateSessionXPDisplay();
             highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
             gameUI.style.display = 'none';
@@ -3937,20 +3977,25 @@
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Save canvas state and apply 25% zoom out
+            // Update camera to follow player
+            updateCamera();
+
+            // Save canvas state and apply camera transformation
             ctx.save();
+
+            // Apply zoom out
             const zoomFactor = 0.75; // 25% zoom out
             ctx.scale(zoomFactor, zoomFactor);
 
-            // Center the scaled content
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
-            ctx.translate(offsetX, offsetY);
+            // Apply camera offset - translate world so camera position appears at screen center
+            const screenCenterX = canvas.width / (2 * zoomFactor);
+            const screenCenterY = canvas.height / (2 * zoomFactor);
+            ctx.translate(screenCenterX - camera.x, screenCenterY - camera.y);
 
             // Apply screen shake
             updateScreenShake();
 
-            // Draw textured ground (inside zoom transformation)
+            // Draw textured ground (with camera system)
             drawTerrain();
 
             drawWalls();
@@ -4139,13 +4184,14 @@
             const rawX = e.clientX - rect.left;
             const rawY = e.clientY - rect.top;
 
-            // Adjust for zoom - convert screen coordinates to game world coordinates
+            // Convert screen coordinates to world coordinates with camera system
             const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const screenCenterX = canvas.width / 2;
+            const screenCenterY = canvas.height / 2;
 
-            mouseX = (rawX / zoomFactor) - offsetX;
-            mouseY = (rawY / zoomFactor) - offsetY;
+            // Convert to world coordinates accounting for zoom and camera position
+            mouseX = camera.x + (rawX - screenCenterX) / zoomFactor;
+            mouseY = camera.y + (rawY - screenCenterY) / zoomFactor;
             mouseMoved = true;
         });
 
@@ -4205,13 +4251,13 @@
             touchStartY = touchY;
             touchStartTime = Date.now();
 
-            // Update mouse position for aiming - adjust for zoom
+            // Update mouse position for aiming with camera system
             const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const screenCenterX = canvas.width / 2;
+            const screenCenterY = canvas.height / 2;
 
-            mouseX = (touchX / zoomFactor) - offsetX;
-            mouseY = (touchY / zoomFactor) - offsetY;
+            mouseX = camera.x + (touchX - screenCenterX) / zoomFactor;
+            mouseY = camera.y + (touchY - screenCenterY) / zoomFactor;
             mouseMoved = true;
 
             // Shoot immediately on touch (will be overridden by swipe if detected)
@@ -4227,13 +4273,15 @@
             e.preventDefault(); // Prevent scrolling
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches[0];
-            // Adjust for zoom
+            // Convert touch coordinates to world coordinates with camera system
             const zoomFactor = 0.75;
-            const offsetX = (canvas.width * (1 - zoomFactor)) / (2 * zoomFactor);
-            const offsetY = (canvas.height * (1 - zoomFactor)) / (2 * zoomFactor);
+            const screenCenterX = canvas.width / 2;
+            const screenCenterY = canvas.height / 2;
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
 
-            mouseX = ((touch.clientX - rect.left) / zoomFactor) - offsetX;
-            mouseY = ((touch.clientY - rect.top) / zoomFactor) - offsetY;
+            mouseX = camera.x + (touchX - screenCenterX) / zoomFactor;
+            mouseY = camera.y + (touchY - screenCenterY) / zoomFactor;
             mouseMoved = true;
         });
 
