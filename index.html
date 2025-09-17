@@ -887,7 +887,8 @@
             createSounds() {
                 // Create procedural sounds using Web Audio API
                 this.sounds = {
-                    pistol: this.createGunSound(200, 0.1, 'saw'),
+                    pistol: this.createPistolSound(),
+                    assaultRifle: this.createAssaultRifleSound(),
                     shotgun: this.createGunSound(150, 0.15, 'square'),
                     fragGrenade: this.createFragGrenadeSound(),
                     nuke: this.createExplosionSound(80, 0.3),
@@ -924,6 +925,330 @@
 
                     oscillator.start(this.audioContext.currentTime);
                     oscillator.stop(this.audioContext.currentTime + duration);
+                };
+            }
+
+            createRealisticPistolSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.4;
+
+                    // Add slight variations to each shot for realism
+                    const variation = 0.9 + Math.random() * 0.2; // 0.9 to 1.1 multiplier
+                    const pitchVariation = 0.95 + Math.random() * 0.1; // Slight pitch variation
+
+                    // Layer 1: Initial crack (white noise burst)
+                    const noiseBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.02, this.audioContext.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < noiseData.length; i++) {
+                        noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseData.length); // Fade out quickly
+                    }
+                    const noiseSource = this.audioContext.createBufferSource();
+                    const noiseGain = this.audioContext.createGain();
+                    const noiseFilter = this.audioContext.createBiquadFilter();
+
+                    noiseSource.buffer = noiseBuffer;
+                    noiseFilter.type = 'bandpass'; // Bandpass to limit both high and low extremes
+                    noiseFilter.frequency.setValueAtTime(1200, now); // Lower center frequency
+                    noiseFilter.Q.setValueAtTime(1.5, now); // Moderate Q for more natural sound
+
+                    noiseSource.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(this.audioContext.destination);
+
+                    noiseGain.gain.setValueAtTime(baseVolume * 0.8 * variation, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
+
+                    noiseSource.start(now);
+
+                    // Layer 2: Main body (more realistic, less harsh)
+                    const mainOsc = this.audioContext.createOscillator();
+                    const mainGain = this.audioContext.createGain();
+                    const mainFilter = this.audioContext.createBiquadFilter();
+
+                    mainOsc.type = 'triangle'; // Softer than sawtooth
+                    mainOsc.frequency.setValueAtTime(180 * pitchVariation, now); // Lower starting frequency
+                    mainOsc.frequency.exponentialRampToValueAtTime(40 * pitchVariation, now + 0.06); // Faster decay
+
+                    mainFilter.type = 'lowpass'; // Low-pass instead of bandpass to remove harsh highs
+                    mainFilter.frequency.setValueAtTime(600, now); // Lower cutoff frequency
+                    mainFilter.frequency.exponentialRampToValueAtTime(200, now + 0.06); // Sweep down
+
+                    mainOsc.connect(mainFilter);
+                    mainFilter.connect(mainGain);
+                    mainGain.connect(this.audioContext.destination);
+
+                    mainGain.gain.setValueAtTime(baseVolume * variation * 0.7, now); // Slightly quieter
+                    mainGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+                    mainOsc.start(now);
+                    mainOsc.stop(now + 0.06);
+
+                    // Layer 3: Bass thump (low frequency punch)
+                    const bassOsc = this.audioContext.createOscillator();
+                    const bassGain = this.audioContext.createGain();
+                    const bassFilter = this.audioContext.createBiquadFilter();
+
+                    bassOsc.type = 'sine';
+                    bassOsc.frequency.setValueAtTime(60 * pitchVariation, now);
+                    bassOsc.frequency.exponentialRampToValueAtTime(30 * pitchVariation, now + 0.12);
+
+                    bassFilter.type = 'lowpass';
+                    bassFilter.frequency.setValueAtTime(200, now);
+
+                    bassOsc.connect(bassFilter);
+                    bassFilter.connect(bassGain);
+                    bassGain.connect(this.audioContext.destination);
+
+                    bassGain.gain.setValueAtTime(baseVolume * 0.6 * variation, now);
+                    bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                    bassOsc.start(now);
+                    bassOsc.stop(now + 0.12);
+
+                    // Layer 4: More realistic mechanical action (using filtered noise)
+                    const mechanicalBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.015, this.audioContext.sampleRate);
+                    const mechanicalData = mechanicalBuffer.getChannelData(0);
+
+                    // Create short burst of noise for mechanical sound
+                    for (let i = 0; i < mechanicalData.length; i++) {
+                        mechanicalData[i] = (Math.random() * 2 - 1) * (1 - i / mechanicalData.length);
+                    }
+
+                    const mechanicalSource = this.audioContext.createBufferSource();
+                    const mechanicalGain = this.audioContext.createGain();
+                    const mechanicalFilter = this.audioContext.createBiquadFilter();
+
+                    mechanicalSource.buffer = mechanicalBuffer;
+                    mechanicalFilter.type = 'bandpass';
+                    mechanicalFilter.frequency.setValueAtTime(800, now + 0.04); // Metal contact frequency
+                    mechanicalFilter.Q.setValueAtTime(3, now + 0.04); // Sharp resonance
+
+                    mechanicalSource.connect(mechanicalFilter);
+                    mechanicalFilter.connect(mechanicalGain);
+                    mechanicalGain.connect(this.audioContext.destination);
+
+                    mechanicalGain.gain.setValueAtTime(baseVolume * 0.15 * variation, now + 0.04);
+                    mechanicalGain.gain.exponentialRampToValueAtTime(0.01, now + 0.055);
+
+                    mechanicalSource.start(now + 0.04);
+                };
+            }
+
+            createPistolSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.9;
+                    const variation = 0.9 + Math.random() * 0.2;
+                    const pitchVar = 0.95 + Math.random() * 0.1;
+
+                    // 1. EXPLOSIVE BLAST - Deep gunpowder explosion (instant, massive)
+                    const blastBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.06, this.audioContext.sampleRate);
+                    const blastData = blastBuffer.getChannelData(0);
+                    for (let i = 0; i < blastData.length; i++) {
+                        const decay = Math.pow(1 - i / blastData.length, 1.8); // Sustained explosion
+                        // Create explosive burst with mixed frequencies
+                        blastData[i] = (Math.random() * 2 - 1) * decay;
+                    }
+
+                    const blastSource = this.audioContext.createBufferSource();
+                    const blastGain = this.audioContext.createGain();
+                    const blastFilter = this.audioContext.createBiquadFilter();
+
+                    blastSource.buffer = blastBuffer;
+                    blastFilter.type = 'bandpass';
+                    blastFilter.frequency.setValueAtTime(800 * pitchVar, now); // Mid-range, not tinny
+                    blastFilter.Q.setValueAtTime(0.8, now); // Wide, not sharp
+
+                    blastSource.connect(blastFilter);
+                    blastFilter.connect(blastGain);
+                    blastGain.connect(this.audioContext.destination);
+
+                    blastGain.gain.setValueAtTime(baseVolume * 2.2 * variation, now); // EVEN MORE MASSIVE volume
+                    blastGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                    blastSource.start(now);
+
+                    // 2. DEEP BOOM - Raw gunpowder thump (overlapping)
+                    const boomOsc = this.audioContext.createOscillator();
+                    const boomGain = this.audioContext.createGain();
+                    const boomFilter = this.audioContext.createBiquadFilter();
+
+                    boomOsc.type = 'sawtooth'; // Rich, raw sound
+                    boomOsc.frequency.setValueAtTime(120 * pitchVar, now + 0.005); // Deeper than semi-auto
+                    boomOsc.frequency.exponentialRampToValueAtTime(40 * pitchVar, now + 0.08);
+
+                    boomFilter.type = 'lowpass';
+                    boomFilter.frequency.setValueAtTime(500, now + 0.005); // Less filtered, more raw
+
+                    boomOsc.connect(boomFilter);
+                    boomFilter.connect(boomGain);
+                    boomGain.connect(this.audioContext.destination);
+
+                    boomGain.gain.setValueAtTime(baseVolume * 1.8 * variation, now + 0.005); // LOUDER recoil
+                    boomGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                    boomOsc.start(now + 0.005);
+                    boomOsc.stop(now + 0.08);
+
+                    // 3. HAMMER CLICK - Revolver hammer action (much later)
+                    const hammerOsc = this.audioContext.createOscillator();
+                    const hammerGain = this.audioContext.createGain();
+                    const hammerFilter = this.audioContext.createBiquadFilter();
+
+                    hammerOsc.type = 'square';
+                    hammerOsc.frequency.setValueAtTime(1200, now + 0.15); // Sharp click
+                    hammerOsc.frequency.exponentialRampToValueAtTime(800, now + 0.16);
+
+                    hammerFilter.type = 'bandpass';
+                    hammerFilter.frequency.setValueAtTime(1500, now + 0.15);
+                    hammerFilter.Q.setValueAtTime(3, now + 0.15);
+
+                    hammerOsc.connect(hammerFilter);
+                    hammerFilter.connect(hammerGain);
+                    hammerGain.connect(this.audioContext.destination);
+
+                    hammerGain.gain.setValueAtTime(baseVolume * 0.4 * variation, now + 0.15);
+                    hammerGain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+                    hammerOsc.start(now + 0.15);
+                    hammerOsc.stop(now + 0.16);
+
+                    // 4. LONG ROLLING ECHO - Western canyon echo
+                    const echoBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.4, this.audioContext.sampleRate);
+                    const echoData = echoBuffer.getChannelData(0);
+                    for (let i = 0; i < echoData.length; i++) {
+                        const decay = Math.pow(1 - i / echoData.length, 0.8); // Very slow fade
+                        // Add rolling reflections like canyon walls
+                        const roll = Math.sin(i * 0.0003) * 0.5 + Math.sin(i * 0.0007) * 0.3;
+                        echoData[i] = (Math.random() * 2 - 1) * decay * (0.4 + roll);
+                    }
+
+                    const echoSource = this.audioContext.createBufferSource();
+                    const echoGain = this.audioContext.createGain();
+                    const echoFilter = this.audioContext.createBiquadFilter();
+
+                    echoSource.buffer = echoBuffer;
+                    echoFilter.type = 'lowpass';
+                    echoFilter.frequency.setValueAtTime(600, now + 0.08); // Keep some mids
+                    echoFilter.frequency.exponentialRampToValueAtTime(120, now + 0.48);
+
+                    echoSource.connect(echoFilter);
+                    echoFilter.connect(echoGain);
+                    echoGain.connect(this.audioContext.destination);
+
+                    echoGain.gain.setValueAtTime(baseVolume * 0.5 * variation, now + 0.08); // Strong echo
+                    echoGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+                    echoSource.start(now + 0.08);
+                };
+            }
+
+            createAssaultRifleSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.5;
+
+                    // Variation for each shot
+                    const variation = 0.9 + Math.random() * 0.2;
+                    const pitchVar = 0.95 + Math.random() * 0.1;
+
+                    // Layer 1: Sharp crack (supersonic bullet snap)
+                    const crackBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.008, this.audioContext.sampleRate);
+                    const crackData = crackBuffer.getChannelData(0);
+
+                    // Very sharp attack, immediate decay for crack
+                    for (let i = 0; i < crackData.length; i++) {
+                        const decay = Math.pow(1 - i / crackData.length, 3); // Sharp exponential decay
+                        crackData[i] = (Math.random() * 2 - 1) * decay;
+                    }
+
+                    const crackSource = this.audioContext.createBufferSource();
+                    const crackGain = this.audioContext.createGain();
+                    const crackFilter = this.audioContext.createBiquadFilter();
+
+                    crackSource.buffer = crackBuffer;
+                    crackFilter.type = 'highpass';
+                    crackFilter.frequency.setValueAtTime(3000 * pitchVar, now);
+
+                    crackSource.connect(crackFilter);
+                    crackFilter.connect(crackGain);
+                    crackGain.connect(this.audioContext.destination);
+
+                    crackGain.gain.setValueAtTime(baseVolume * 0.9 * variation, now);
+                    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.008);
+
+                    crackSource.start(now);
+
+                    // Layer 2: Muzzle blast (powder explosion)
+                    const blastOsc = this.audioContext.createOscillator();
+                    const blastGain = this.audioContext.createGain();
+                    const blastFilter = this.audioContext.createBiquadFilter();
+
+                    blastOsc.type = 'sawtooth';
+                    blastOsc.frequency.setValueAtTime(150 * pitchVar, now);
+                    blastOsc.frequency.exponentialRampToValueAtTime(35 * pitchVar, now + 0.04);
+
+                    blastFilter.type = 'lowpass';
+                    blastFilter.frequency.setValueAtTime(800 * pitchVar, now);
+                    blastFilter.frequency.exponentialRampToValueAtTime(100, now + 0.04);
+
+                    blastOsc.connect(blastFilter);
+                    blastFilter.connect(blastGain);
+                    blastGain.connect(this.audioContext.destination);
+
+                    blastGain.gain.setValueAtTime(baseVolume * 0.8 * variation, now);
+                    blastGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+                    blastOsc.start(now);
+                    blastOsc.stop(now + 0.04);
+
+                    // Layer 3: Low-end thump (pressure wave)
+                    const thumpOsc = this.audioContext.createOscillator();
+                    const thumpGain = this.audioContext.createGain();
+
+                    thumpOsc.type = 'sine';
+                    thumpOsc.frequency.setValueAtTime(45 * pitchVar, now);
+                    thumpOsc.frequency.exponentialRampToValueAtTime(20, now + 0.06);
+
+                    thumpOsc.connect(thumpGain);
+                    thumpGain.connect(this.audioContext.destination);
+
+                    thumpGain.gain.setValueAtTime(baseVolume * 0.7 * variation, now);
+                    thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+                    thumpOsc.start(now);
+                    thumpOsc.stop(now + 0.06);
+
+                    // Layer 4: Mechanical action (slide/ejection)
+                    const actionBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.01, this.audioContext.sampleRate);
+                    const actionData = actionBuffer.getChannelData(0);
+
+                    for (let i = 0; i < actionData.length; i++) {
+                        actionData[i] = (Math.random() * 2 - 1) * (1 - i / actionData.length);
+                    }
+
+                    const actionSource = this.audioContext.createBufferSource();
+                    const actionGain = this.audioContext.createGain();
+                    const actionFilter = this.audioContext.createBiquadFilter();
+
+                    actionSource.buffer = actionBuffer;
+                    actionFilter.type = 'bandpass';
+                    actionFilter.frequency.setValueAtTime(1200 * pitchVar, now + 0.015);
+                    actionFilter.Q.setValueAtTime(4, now + 0.015);
+
+                    actionSource.connect(actionFilter);
+                    actionFilter.connect(actionGain);
+                    actionGain.connect(this.audioContext.destination);
+
+                    actionGain.gain.setValueAtTime(baseVolume * 0.3 * variation, now + 0.015);
+                    actionGain.gain.exponentialRampToValueAtTime(0.01, now + 0.025);
+
+                    actionSource.start(now + 0.015);
                 };
             }
 
@@ -3142,7 +3467,7 @@
             } else if (currentWeapon === 'assaultRifle') {
                 if (ammo.assaultRifle <= 0) return;
                 ammo.assaultRifle--;
-                audioManager.playSound('pistol'); // Use pistol sound for now
+                audioManager.playSound('assaultRifle');
                 createMuzzleFlash(player.x, player.y, angle, 'assaultRifle');
                 addScreenShake(2, 50); // Light shake for assault rifle
                 const speed = 12;
