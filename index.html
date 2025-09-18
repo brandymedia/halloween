@@ -688,11 +688,12 @@
                                 { gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }, // Side walls (middle)
                                 { gridX: -1, gridY: 1 }, { gridX: 1, gridY: 1 }, // South wall sides (door at 0,1)
                             ],
-                            doors: [
+                            doors: [ // South wall: gridX: 0, gridY: 1 | North wall: gridX: 0, gridY: -2 | East wall: gridX: 1, gridY: 0 | West wall: gridX: -1, gridY: 0
                                 {
-                                    gridX: 0, gridY: 1, // South side of cabin
-                                    orientation: 'horizontal', // 'horizontal' or 'vertical'
-                                    width: 32, // Door width in pixels
+                                    // Current: South wall center
+                                    gridX: 0, gridY: 1,
+                                    orientation: 'horizontal', // 'horizontal' for North/South walls, 'vertical' for East/West walls
+                                    width: 64, // Door width in pixels
                                     color: '#8B4513' // Brown door
                                 }
                             ]
@@ -2728,60 +2729,181 @@
                     if (building.walls) {
                         console.log('Found', building.walls.length, 'walls for', building.name);
 
-                        // North wall (horizontal)
-                        walls.push({
-                            x: cabinLeft,
-                            y: cabinTop,
-                            width: cabinRight - cabinLeft,
-                            height: wallThickness,
-                            type: 'wall',
-                            color: wallColor
-                        });
+                        // Check if there are doors in each wall
+                        const hasSouthDoor = building.doors && building.doors.some(d => d.gridY === 1);
+                        const hasNorthDoor = building.doors && building.doors.some(d => d.gridY === -2);
+                        const hasLeftDoor = building.doors && building.doors.some(d => d.gridX === -1);
+                        const hasRightDoor = building.doors && building.doors.some(d => d.gridX === 1);
 
-                        // South wall (horizontal) with door gap in center
-                        const doorGapLeft = (cabinLeft + cabinRight - doorWidth) / 2;
-                        const doorGapRight = doorGapLeft + doorWidth;
+                        // North wall
+                        if (hasNorthDoor) {
+                            const northDoor = building.doors.find(d => d.gridY === -2);
+                            const northDoorPos = GridSystem.gridToWorld(northDoor.gridX, northDoor.gridY);
+                            const northDoorWidth = northDoor.width || 32;
+                            const doorGapLeft = northDoorPos.x - northDoorWidth / 2;
+                            const doorGapRight = northDoorPos.x + northDoorWidth / 2;
 
-                        // Left side of south wall
-                        walls.push({
-                            x: cabinLeft,
-                            y: cabinBottom - wallThickness,
-                            width: doorGapLeft - cabinLeft,
-                            height: wallThickness,
-                            type: 'wall',
-                            color: wallColor
-                        });
-                        // Right side of south wall
-                        walls.push({
-                            x: doorGapRight,
-                            y: cabinBottom - wallThickness,
-                            width: cabinRight - doorGapRight,
-                            height: wallThickness,
-                            type: 'wall',
-                            color: wallColor
-                        });
+                            // Left side of north wall
+                            if (doorGapLeft > cabinLeft) {
+                                walls.push({
+                                    x: cabinLeft,
+                                    y: cabinTop,
+                                    width: doorGapLeft - cabinLeft,
+                                    height: wallThickness,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                            // Right side of north wall
+                            if (doorGapRight < cabinRight) {
+                                walls.push({
+                                    x: doorGapRight,
+                                    y: cabinTop,
+                                    width: cabinRight - doorGapRight,
+                                    height: wallThickness,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                        } else {
+                            // Solid north wall
+                            walls.push({
+                                x: cabinLeft,
+                                y: cabinTop,
+                                width: cabinRight - cabinLeft,
+                                height: wallThickness,
+                                type: 'wall',
+                                color: wallColor
+                            });
+                        }
 
-                        // Left wall (vertical) - avoid overlapping corners
-                        walls.push({
-                            x: cabinLeft,
-                            y: cabinTop + wallThickness,
-                            width: wallThickness,
-                            height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
-                            type: 'wall',
-                            color: wallColor
-                        });
+                        // South wall
+                        if (hasSouthDoor) {
+                            const southDoor = building.doors.find(d => d.gridY === 1);
+                            const southDoorPos = GridSystem.gridToWorld(southDoor.gridX, southDoor.gridY);
+                            const southDoorWidth = southDoor.width || 32;
+                            const doorGapLeft = southDoorPos.x - southDoorWidth / 2;
+                            const doorGapRight = southDoorPos.x + southDoorWidth / 2;
 
-                        // Right wall (vertical) - avoid overlapping corners
-                        walls.push({
-                            x: cabinRight - wallThickness,
-                            y: cabinTop + wallThickness,
-                            width: wallThickness,
-                            height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
-                            type: 'wall',
-                            color: wallColor
-                        });
+                            // Left side of south wall
+                            if (doorGapLeft > cabinLeft) {
+                                walls.push({
+                                    x: cabinLeft,
+                                    y: cabinBottom - wallThickness,
+                                    width: doorGapLeft - cabinLeft,
+                                    height: wallThickness,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                            // Right side of south wall
+                            if (doorGapRight < cabinRight) {
+                                walls.push({
+                                    x: doorGapRight,
+                                    y: cabinBottom - wallThickness,
+                                    width: cabinRight - doorGapRight,
+                                    height: wallThickness,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                        } else {
+                            // Solid south wall
+                            walls.push({
+                                x: cabinLeft,
+                                y: cabinBottom - wallThickness,
+                                width: cabinRight - cabinLeft,
+                                height: wallThickness,
+                                type: 'wall',
+                                color: wallColor
+                            });
+                        }
 
-                        console.log('Generated cabin walls:', walls.length, 'wall segments');
+                        // Left wall
+                        if (hasLeftDoor) {
+                            const leftDoor = building.doors.find(d => d.gridX === -1);
+                            const leftDoorPos = GridSystem.gridToWorld(leftDoor.gridX, leftDoor.gridY);
+                            const leftDoorWidth = leftDoor.width || 32;
+                            const doorGapTop = leftDoorPos.y - leftDoorWidth / 2;
+                            const doorGapBottom = leftDoorPos.y + leftDoorWidth / 2;
+
+                            // Top part of left wall
+                            if (doorGapTop > cabinTop + wallThickness) {
+                                walls.push({
+                                    x: cabinLeft,
+                                    y: cabinTop + wallThickness,
+                                    width: wallThickness,
+                                    height: doorGapTop - (cabinTop + wallThickness),
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                            // Bottom part of left wall
+                            if (doorGapBottom < cabinBottom - wallThickness) {
+                                walls.push({
+                                    x: cabinLeft,
+                                    y: doorGapBottom,
+                                    width: wallThickness,
+                                    height: (cabinBottom - wallThickness) - doorGapBottom,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                        } else {
+                            // Solid left wall
+                            walls.push({
+                                x: cabinLeft,
+                                y: cabinTop + wallThickness,
+                                width: wallThickness,
+                                height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
+                                type: 'wall',
+                                color: wallColor
+                            });
+                        }
+
+                        // Right wall
+                        if (hasRightDoor) {
+                            const rightDoor = building.doors.find(d => d.gridX === 1);
+                            const rightDoorPos = GridSystem.gridToWorld(rightDoor.gridX, rightDoor.gridY);
+                            const rightDoorWidth = rightDoor.width || 32;
+                            const doorGapTop = rightDoorPos.y - rightDoorWidth / 2;
+                            const doorGapBottom = rightDoorPos.y + rightDoorWidth / 2;
+
+                            // Top part of right wall
+                            if (doorGapTop > cabinTop + wallThickness) {
+                                walls.push({
+                                    x: cabinRight - wallThickness,
+                                    y: cabinTop + wallThickness,
+                                    width: wallThickness,
+                                    height: doorGapTop - (cabinTop + wallThickness),
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                            // Bottom part of right wall
+                            if (doorGapBottom < cabinBottom - wallThickness) {
+                                walls.push({
+                                    x: cabinRight - wallThickness,
+                                    y: doorGapBottom,
+                                    width: wallThickness,
+                                    height: (cabinBottom - wallThickness) - doorGapBottom,
+                                    type: 'wall',
+                                    color: wallColor
+                                });
+                            }
+                        } else {
+                            // Solid right wall
+                            walls.push({
+                                x: cabinRight - wallThickness,
+                                y: cabinTop + wallThickness,
+                                width: wallThickness,
+                                height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
+                                type: 'wall',
+                                color: wallColor
+                            });
+                        }
+
+                        console.log('Generated cabin walls with dynamic gaps:', walls.length, 'wall segments');
                     }
 
                     // Generate doors for this building
@@ -2790,22 +2912,80 @@
                         building.doors.forEach(doorDef => {
                             const doorWidth = doorDef.width || 32;
                             const doorThickness = 12;
+                            const orientation = doorDef.orientation || 'horizontal';
 
-                            // Position door in the center of the door gap
-                            const door = {
-                                x: (cabinLeft + cabinRight - doorWidth) / 2,
-                                y: cabinBottom - wallThickness + (wallThickness - doorThickness) / 2,
-                                width: doorWidth,
-                                height: doorThickness,
-                                orientation: doorDef.orientation || 'horizontal',
-                                color: doorDef.color || '#8B4513',
-                                building: building.name,
-                                open: false,
-                                openAmount: 0,
-                                targetOpen: 0
-                            };
-                            doors.push(door);
-                            console.log('Added door in cabin gap:', door);
+                            // Get door position from grid coordinates
+                            const doorGridPos = GridSystem.gridToWorld(doorDef.gridX, doorDef.gridY);
+
+                            let door;
+                            if (orientation === 'horizontal') {
+                                // Horizontal door - position in the wall gap, not at grid center
+                                if (doorDef.gridY === 1) {
+                                    // South wall door
+                                    door = {
+                                        x: doorGridPos.x - doorWidth / 2,
+                                        y: cabinBottom - wallThickness + (wallThickness - doorThickness) / 2,
+                                        width: doorWidth,
+                                        height: doorThickness,
+                                        orientation: orientation,
+                                        color: doorDef.color || '#8B4513',
+                                        building: building.name,
+                                        open: false,
+                                        openAmount: 0,
+                                        targetOpen: 0
+                                    };
+                                } else if (doorDef.gridY === -2) {
+                                    // North wall door
+                                    door = {
+                                        x: doorGridPos.x - doorWidth / 2,
+                                        y: cabinTop + (wallThickness - doorThickness) / 2,
+                                        width: doorWidth,
+                                        height: doorThickness,
+                                        orientation: orientation,
+                                        color: doorDef.color || '#8B4513',
+                                        building: building.name,
+                                        open: false,
+                                        openAmount: 0,
+                                        targetOpen: 0
+                                    };
+                                }
+                            } else if (orientation === 'vertical') {
+                                // Vertical door - position in the wall gap
+                                if (doorDef.gridX === 1) {
+                                    // Right wall door
+                                    door = {
+                                        x: cabinRight - wallThickness + (wallThickness - doorThickness) / 2,
+                                        y: doorGridPos.y - doorWidth / 2,
+                                        width: doorThickness,
+                                        height: doorWidth,
+                                        orientation: orientation,
+                                        color: doorDef.color || '#8B4513',
+                                        building: building.name,
+                                        open: false,
+                                        openAmount: 0,
+                                        targetOpen: 0
+                                    };
+                                } else if (doorDef.gridX === -1) {
+                                    // Left wall door
+                                    door = {
+                                        x: cabinLeft + (wallThickness - doorThickness) / 2,
+                                        y: doorGridPos.y - doorWidth / 2,
+                                        width: doorThickness,
+                                        height: doorWidth,
+                                        orientation: orientation,
+                                        color: doorDef.color || '#8B4513',
+                                        building: building.name,
+                                        open: false,
+                                        openAmount: 0,
+                                        targetOpen: 0
+                                    };
+                                }
+                            }
+
+                            if (door) {
+                                doors.push(door);
+                                console.log('Added', orientation, 'door at grid', doorDef.gridX, doorDef.gridY, '-> world pos', doorGridPos, ':', door);
+                            }
                         });
                     }
                 });
@@ -3052,23 +3232,38 @@
             doors.forEach(door => {
                 ctx.fillStyle = door.color;
 
-                // Draw double doors that slide into wall pockets (behind walls)
-                const halfWidth = door.width * 0.5;
+                if (door.orientation === 'horizontal') {
+                    // Horizontal doors (north/south walls) - slide left/right
+                    const halfWidth = door.width * 0.5;
+                    const wallGapWidth = (192 - 64) / 2; // Available wall pocket space
+                    const maxSlideDistance = Math.min(halfWidth, wallGapWidth);
+                    const slideDistance = maxSlideDistance * door.openAmount;
+                    const panelWidth = halfWidth;
 
-                // Calculate available wall pocket space on each side
-                const wallGapWidth = (192 - 64) / 2; // (size - doorSize) / 2 = 64px
-                const maxSlideDistance = Math.min(halfWidth, wallGapWidth); // Don't slide beyond wall pocket
-                const slideDistance = maxSlideDistance * door.openAmount; // Proportional slide distance
-                const panelWidth = halfWidth; // Each panel is always half door width
+                    // Left door panel - slides left into wall pocket
+                    const leftPanelX = door.x - slideDistance;
+                    ctx.fillRect(leftPanelX, door.y, panelWidth, door.height);
 
-                // Always draw full panels (they'll be hidden by walls when sliding)
-                // Left door panel - starts at door.x, slides left into wall pocket
-                const leftPanelX = door.x - slideDistance;
-                ctx.fillRect(leftPanelX, door.y, panelWidth, door.height);
+                    // Right door panel - slides right into wall pocket
+                    const rightPanelX = door.x + halfWidth + slideDistance;
+                    ctx.fillRect(rightPanelX, door.y, panelWidth, door.height);
 
-                // Right door panel - starts at door.x + halfWidth, slides right into wall pocket
-                const rightPanelX = door.x + halfWidth + slideDistance;
-                ctx.fillRect(rightPanelX, door.y, panelWidth, door.height);
+                } else if (door.orientation === 'vertical') {
+                    // Vertical doors (east/west walls) - slide up/down
+                    const halfHeight = door.height * 0.5;
+                    const wallGapHeight = (192 - 64) / 2; // Available wall pocket space
+                    const maxSlideDistance = Math.min(halfHeight, wallGapHeight);
+                    const slideDistance = maxSlideDistance * door.openAmount;
+                    const panelHeight = halfHeight;
+
+                    // Top door panel - slides up into wall pocket
+                    const topPanelY = door.y - slideDistance;
+                    ctx.fillRect(door.x, topPanelY, door.width, panelHeight);
+
+                    // Bottom door panel - slides down into wall pocket
+                    const bottomPanelY = door.y + halfHeight + slideDistance;
+                    ctx.fillRect(door.x, bottomPanelY, door.width, panelHeight);
+                }
             });
 
             // Draw walls AFTER doors so they cover sliding panels
