@@ -688,13 +688,11 @@
                                 { gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }, // Side walls (middle)
                                 { gridX: -1, gridY: 1 }, { gridX: 1, gridY: 1 }, // South wall sides (door at 0,1)
                             ],
-                            doors: [ // South wall: gridX: 0, gridY: 1 | North wall: gridX: 0, gridY: -2 | East wall: gridX: 1, gridY: 0 | West wall: gridX: -1, gridY: 0
+                            doors: [ // Simple positioning: wall: 'north'|'south'|'east'|'west' (always centered for proper door sliding)
                                 {
-                                    // Current: South wall center
-                                    gridX: 0, gridY: 1,
-                                    orientation: 'horizontal', // 'horizontal' for North/South walls, 'vertical' for East/West walls
-                                    width: 64, // Door width in pixels
-                                    color: '#8B4513' // Brown door
+                                    wall: 'south',           // Which wall: 'north', 'south', 'east', 'west'
+                                    width: 64,               // Door width in pixels
+                                    color: '#8B4513'         // Brown door color
                                 }
                             ]
                         }
@@ -2730,18 +2728,25 @@
                         console.log('Found', building.walls.length, 'walls for', building.name);
 
                         // Check if there are doors in each wall
-                        const hasSouthDoor = building.doors && building.doors.some(d => d.gridY === 1);
-                        const hasNorthDoor = building.doors && building.doors.some(d => d.gridY === -2);
-                        const hasLeftDoor = building.doors && building.doors.some(d => d.gridX === -1);
-                        const hasRightDoor = building.doors && building.doors.some(d => d.gridX === 1);
+                        const hasSouthDoor = building.doors && building.doors.some(d => d.wall === 'south');
+                        const hasNorthDoor = building.doors && building.doors.some(d => d.wall === 'north');
+                        const hasEastDoor = building.doors && building.doors.some(d => d.wall === 'east');
+                        const hasWestDoor = building.doors && building.doors.some(d => d.wall === 'west');
 
                         // North wall
                         if (hasNorthDoor) {
-                            const northDoor = building.doors.find(d => d.gridY === -2);
-                            const northDoorPos = GridSystem.gridToWorld(northDoor.gridX, northDoor.gridY);
+                            const northDoor = building.doors.find(d => d.wall === 'north');
                             const northDoorWidth = northDoor.width || 32;
-                            const doorGapLeft = northDoorPos.x - northDoorWidth / 2;
-                            const doorGapRight = northDoorPos.x + northDoorWidth / 2;
+                            const pos = northDoor.position || 'center';
+
+                            // Calculate door X position
+                            let northDoorX;
+                            if (pos === 'left') northDoorX = cabinLeft + northDoorWidth / 2;
+                            else if (pos === 'right') northDoorX = cabinRight - northDoorWidth / 2;
+                            else northDoorX = (cabinLeft + cabinRight) / 2; // center
+
+                            const doorGapLeft = northDoorX - northDoorWidth / 2;
+                            const doorGapRight = northDoorX + northDoorWidth / 2;
 
                             // Left side of north wall
                             if (doorGapLeft > cabinLeft) {
@@ -2779,11 +2784,18 @@
 
                         // South wall
                         if (hasSouthDoor) {
-                            const southDoor = building.doors.find(d => d.gridY === 1);
-                            const southDoorPos = GridSystem.gridToWorld(southDoor.gridX, southDoor.gridY);
+                            const southDoor = building.doors.find(d => d.wall === 'south');
                             const southDoorWidth = southDoor.width || 32;
-                            const doorGapLeft = southDoorPos.x - southDoorWidth / 2;
-                            const doorGapRight = southDoorPos.x + southDoorWidth / 2;
+                            const pos = southDoor.position || 'center';
+
+                            // Calculate door X position
+                            let southDoorX;
+                            if (pos === 'left') southDoorX = cabinLeft + southDoorWidth / 2;
+                            else if (pos === 'right') southDoorX = cabinRight - southDoorWidth / 2;
+                            else southDoorX = (cabinLeft + cabinRight) / 2; // center
+
+                            const doorGapLeft = southDoorX - southDoorWidth / 2;
+                            const doorGapRight = southDoorX + southDoorWidth / 2;
 
                             // Left side of south wall
                             if (doorGapLeft > cabinLeft) {
@@ -2819,15 +2831,22 @@
                             });
                         }
 
-                        // Left wall
-                        if (hasLeftDoor) {
-                            const leftDoor = building.doors.find(d => d.gridX === -1);
-                            const leftDoorPos = GridSystem.gridToWorld(leftDoor.gridX, leftDoor.gridY);
-                            const leftDoorWidth = leftDoor.width || 32;
-                            const doorGapTop = leftDoorPos.y - leftDoorWidth / 2;
-                            const doorGapBottom = leftDoorPos.y + leftDoorWidth / 2;
+                        // West wall
+                        if (hasWestDoor) {
+                            const westDoor = building.doors.find(d => d.wall === 'west');
+                            const westDoorWidth = westDoor.width || 32;
+                            const pos = westDoor.position || 'center';
 
-                            // Top part of left wall
+                            // Calculate door Y position
+                            let westDoorY;
+                            if (pos === 'top') westDoorY = cabinTop + westDoorWidth / 2;
+                            else if (pos === 'bottom') westDoorY = cabinBottom - westDoorWidth / 2;
+                            else westDoorY = (cabinTop + cabinBottom) / 2; // center
+
+                            const doorGapTop = westDoorY - westDoorWidth / 2;
+                            const doorGapBottom = westDoorY + westDoorWidth / 2;
+
+                            // Top part of west wall
                             if (doorGapTop > cabinTop + wallThickness) {
                                 walls.push({
                                     x: cabinLeft,
@@ -2861,15 +2880,22 @@
                             });
                         }
 
-                        // Right wall
-                        if (hasRightDoor) {
-                            const rightDoor = building.doors.find(d => d.gridX === 1);
-                            const rightDoorPos = GridSystem.gridToWorld(rightDoor.gridX, rightDoor.gridY);
-                            const rightDoorWidth = rightDoor.width || 32;
-                            const doorGapTop = rightDoorPos.y - rightDoorWidth / 2;
-                            const doorGapBottom = rightDoorPos.y + rightDoorWidth / 2;
+                        // East wall
+                        if (hasEastDoor) {
+                            const eastDoor = building.doors.find(d => d.wall === 'east');
+                            const eastDoorWidth = eastDoor.width || 32;
+                            const pos = eastDoor.position || 'center';
 
-                            // Top part of right wall
+                            // Calculate door Y position
+                            let eastDoorY;
+                            if (pos === 'top') eastDoorY = cabinTop + eastDoorWidth / 2;
+                            else if (pos === 'bottom') eastDoorY = cabinBottom - eastDoorWidth / 2;
+                            else eastDoorY = (cabinTop + cabinBottom) / 2; // center
+
+                            const doorGapTop = eastDoorY - eastDoorWidth / 2;
+                            const doorGapBottom = eastDoorY + eastDoorWidth / 2;
+
+                            // Top part of east wall
                             if (doorGapTop > cabinTop + wallThickness) {
                                 walls.push({
                                     x: cabinRight - wallThickness,
@@ -2912,19 +2938,30 @@
                         building.doors.forEach(doorDef => {
                             const doorWidth = doorDef.width || 32;
                             const doorThickness = 12;
-                            const orientation = doorDef.orientation || 'horizontal';
 
-                            // Get door position from grid coordinates
-                            const doorGridPos = GridSystem.gridToWorld(doorDef.gridX, doorDef.gridY);
+                            // Use new simple wall-based system
+                            const wall = doorDef.wall;
+                            const position = doorDef.position || 'center';
+
+                            if (!wall) {
+                                console.error('Door missing wall property:', doorDef);
+                                return;
+                            }
 
                             let door;
-                            if (orientation === 'horizontal') {
-                                // Horizontal door - position in the wall gap, not at grid center
-                                if (doorDef.gridY === 1) {
-                                    // South wall door
+                            let doorX, doorY, orientation;
+
+                            // Calculate door position based on wall and position
+                            switch (wall) {
+                                case 'south':
+                                    orientation = 'horizontal';
+                                    doorY = cabinBottom - wallThickness + (wallThickness - doorThickness) / 2;
+                                    if (position === 'left') doorX = cabinLeft + doorWidth / 2;
+                                    else if (position === 'right') doorX = cabinRight - doorWidth / 2;
+                                    else doorX = (cabinLeft + cabinRight) / 2; // center
                                     door = {
-                                        x: doorGridPos.x - doorWidth / 2,
-                                        y: cabinBottom - wallThickness + (wallThickness - doorThickness) / 2,
+                                        x: doorX - doorWidth / 2,
+                                        y: doorY,
                                         width: doorWidth,
                                         height: doorThickness,
                                         orientation: orientation,
@@ -2934,11 +2971,17 @@
                                         openAmount: 0,
                                         targetOpen: 0
                                     };
-                                } else if (doorDef.gridY === -2) {
-                                    // North wall door
+                                    break;
+
+                                case 'north':
+                                    orientation = 'horizontal';
+                                    doorY = cabinTop + (wallThickness - doorThickness) / 2;
+                                    if (position === 'left') doorX = cabinLeft + doorWidth / 2;
+                                    else if (position === 'right') doorX = cabinRight - doorWidth / 2;
+                                    else doorX = (cabinLeft + cabinRight) / 2; // center
                                     door = {
-                                        x: doorGridPos.x - doorWidth / 2,
-                                        y: cabinTop + (wallThickness - doorThickness) / 2,
+                                        x: doorX - doorWidth / 2,
+                                        y: doorY,
                                         width: doorWidth,
                                         height: doorThickness,
                                         orientation: orientation,
@@ -2948,14 +2991,17 @@
                                         openAmount: 0,
                                         targetOpen: 0
                                     };
-                                }
-                            } else if (orientation === 'vertical') {
-                                // Vertical door - position in the wall gap
-                                if (doorDef.gridX === 1) {
-                                    // Right wall door
+                                    break;
+
+                                case 'east':
+                                    orientation = 'vertical';
+                                    doorX = cabinRight - wallThickness + (wallThickness - doorThickness) / 2;
+                                    if (position === 'top') doorY = cabinTop + doorWidth / 2;
+                                    else if (position === 'bottom') doorY = cabinBottom - doorWidth / 2;
+                                    else doorY = (cabinTop + cabinBottom) / 2; // center
                                     door = {
-                                        x: cabinRight - wallThickness + (wallThickness - doorThickness) / 2,
-                                        y: doorGridPos.y - doorWidth / 2,
+                                        x: doorX,
+                                        y: doorY - doorWidth / 2,
                                         width: doorThickness,
                                         height: doorWidth,
                                         orientation: orientation,
@@ -2965,11 +3011,17 @@
                                         openAmount: 0,
                                         targetOpen: 0
                                     };
-                                } else if (doorDef.gridX === -1) {
-                                    // Left wall door
+                                    break;
+
+                                case 'west':
+                                    orientation = 'vertical';
+                                    doorX = cabinLeft + (wallThickness - doorThickness) / 2;
+                                    if (position === 'top') doorY = cabinTop + doorWidth / 2;
+                                    else if (position === 'bottom') doorY = cabinBottom - doorWidth / 2;
+                                    else doorY = (cabinTop + cabinBottom) / 2; // center
                                     door = {
-                                        x: cabinLeft + (wallThickness - doorThickness) / 2,
-                                        y: doorGridPos.y - doorWidth / 2,
+                                        x: doorX,
+                                        y: doorY - doorWidth / 2,
                                         width: doorThickness,
                                         height: doorWidth,
                                         orientation: orientation,
@@ -2979,12 +3031,12 @@
                                         openAmount: 0,
                                         targetOpen: 0
                                     };
-                                }
+                                    break;
                             }
 
                             if (door) {
                                 doors.push(door);
-                                console.log('Added', orientation, 'door at grid', doorDef.gridX, doorDef.gridY, '-> world pos', doorGridPos, ':', door);
+                                console.log('Added door on', wall, 'wall at', position, 'position:', door);
                             }
                         });
                     }
