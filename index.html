@@ -683,16 +683,19 @@
                         {
                             name: 'cabin',
                             walls: [
-                                { gridX: -1, gridY: -2 }, { gridX: 0, gridY: -2 }, { gridX: 1, gridY: -2 }, // North wall
-                                { gridX: -1, gridY: -1 }, { gridX: 1, gridY: -1 }, // Side walls (middle)
-                                { gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }, // Side walls (middle)
-                                { gridX: -1, gridY: 1 }, { gridX: 1, gridY: 1 }, // South wall sides (door at 0,1)
+                                // Walls positioned so outer edges align to actual grid intersections (not tile centers)
+                                { startX: -88, startY: -152, endX: 88, endY: -152, thickness: 16 }, // North wall (outer edge at -160 grid line)
+                                { startX: -88, startY: -160, endX: -88, endY: 96, thickness: 16 },   // West wall (outer edge at -96 grid line)
+                                { startX: 88, startY: -160, endX: 88, endY: 96, thickness: 16 },     // East wall (outer edge at 96 grid line)
+                                { startX: -88, startY: 88, endX: 88, endY: 88, thickness: 16 }       // South wall (outer edge at 96 grid line)
                             ],
-                            doors: [ // Simple positioning: wall: 'north'|'south'|'east'|'west' (always centered for proper door sliding)
+                            doors: [
                                 {
-                                    wall: 'south',           // Which wall: 'north', 'south', 'east', 'west'
-                                    width: 64,               // Door width in pixels
-                                    color: '#8B4513'         // Brown door color
+                                    x: 0,             // Door center X position
+                                    y: 88,            // Door Y position (on south wall - updated to match wall position)
+                                    width: 64,        // Door width
+                                    height: 12,       // Door thickness
+                                    color: '#8B4513'  // Brown door color
                                 }
                             ]
                         }
@@ -2727,317 +2730,154 @@
                     if (building.walls) {
                         console.log('Found', building.walls.length, 'walls for', building.name);
 
-                        // Check if there are doors in each wall
-                        const hasSouthDoor = building.doors && building.doors.some(d => d.wall === 'south');
-                        const hasNorthDoor = building.doors && building.doors.some(d => d.wall === 'north');
-                        const hasEastDoor = building.doors && building.doors.some(d => d.wall === 'east');
-                        const hasWestDoor = building.doors && building.doors.some(d => d.wall === 'west');
+                        // Go back to basics: just create walls exactly where coordinates specify
+                        const wallThickness = 16;
+                        const wallColor = building.wallColor || '#8B7D6B';
 
-                        // North wall
-                        if (hasNorthDoor) {
-                            const northDoor = building.doors.find(d => d.wall === 'north');
-                            const northDoorWidth = northDoor.width || 32;
-                            const pos = northDoor.position || 'center';
+                        // Create walls from start/end coordinates
+                        if (building.walls && building.walls.length > 0) {
+                            console.log('Found', building.walls.length, 'wall definitions with start/end coordinates');
 
-                            // Calculate door X position
-                            let northDoorX;
-                            if (pos === 'left') northDoorX = cabinLeft + northDoorWidth / 2;
-                            else if (pos === 'right') northDoorX = cabinRight - northDoorWidth / 2;
-                            else northDoorX = (cabinLeft + cabinRight) / 2; // center
+                            building.walls.forEach((wallDef, index) => {
+                                const thickness = wallDef.thickness || 16;
+                                const color = wallDef.color || wallColor;
 
-                            const doorGapLeft = northDoorX - northDoorWidth / 2;
-                            const doorGapRight = northDoorX + northDoorWidth / 2;
+                                // Determine if wall is horizontal or vertical
+                                const isHorizontal = wallDef.startY === wallDef.endY;
+                                const isVertical = wallDef.startX === wallDef.endX;
 
-                            // Left side of north wall
-                            if (doorGapLeft > cabinLeft) {
-                                walls.push({
-                                    x: cabinLeft,
-                                    y: cabinTop,
-                                    width: doorGapLeft - cabinLeft,
-                                    height: wallThickness,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                            // Right side of north wall
-                            if (doorGapRight < cabinRight) {
-                                walls.push({
-                                    x: doorGapRight,
-                                    y: cabinTop,
-                                    width: cabinRight - doorGapRight,
-                                    height: wallThickness,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                        } else {
-                            // Solid north wall
-                            walls.push({
-                                x: cabinLeft,
-                                y: cabinTop,
-                                width: cabinRight - cabinLeft,
-                                height: wallThickness,
-                                type: 'wall',
-                                color: wallColor
+                                if (!isHorizontal && !isVertical) {
+                                    console.warn('Wall must be either horizontal or vertical:', wallDef);
+                                    return;
+                                }
+
+                                if (isHorizontal) {
+                                    // Horizontal wall
+                                    const left = Math.min(wallDef.startX, wallDef.endX);
+                                    const right = Math.max(wallDef.startX, wallDef.endX);
+                                    const y = wallDef.startY;
+
+                                    // Check if any doors cut through this wall
+                                    const wallSegments = [{start: left, end: right}];
+
+                                    if (building.doors) {
+                                        building.doors.forEach(door => {
+                                            if (Math.abs(door.y - y) < thickness) { // Door is on this wall
+                                                const doorLeft = door.x - door.width/2;
+                                                const doorRight = door.x + door.width/2;
+
+                                                // Split wall segments around door
+                                                for (let i = wallSegments.length - 1; i >= 0; i--) {
+                                                    const segment = wallSegments[i];
+                                                    if (doorLeft < segment.end && doorRight > segment.start) {
+                                                        // Door overlaps this segment - split it
+                                                        wallSegments.splice(i, 1);
+                                                        if (segment.start < doorLeft) {
+                                                            wallSegments.push({start: segment.start, end: doorLeft});
+                                                        }
+                                                        if (doorRight < segment.end) {
+                                                            wallSegments.push({start: doorRight, end: segment.end});
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+
+                                    // Create wall segments
+                                    wallSegments.forEach((segment, segIndex) => {
+                                        if (segment.end > segment.start) {
+                                            walls.push({
+                                                x: segment.start,
+                                                y: y - thickness/2,
+                                                width: segment.end - segment.start,
+                                                height: thickness,
+                                                type: 'wall',
+                                                color: color
+                                            });
+                                            console.log(`Created horizontal wall segment ${index}.${segIndex}: x=${segment.start} to ${segment.end}, y=${y}`);
+                                        }
+                                    });
+
+                                } else if (isVertical) {
+                                    // Vertical wall
+                                    const top = Math.min(wallDef.startY, wallDef.endY);
+                                    const bottom = Math.max(wallDef.startY, wallDef.endY);
+                                    const x = wallDef.startX;
+
+                                    // Check if any doors cut through this wall
+                                    const wallSegments = [{start: top, end: bottom}];
+
+                                    if (building.doors) {
+                                        building.doors.forEach(door => {
+                                            if (Math.abs(door.x - x) < thickness) { // Door is on this wall
+                                                const doorTop = door.y - door.height/2;
+                                                const doorBottom = door.y + door.height/2;
+
+                                                // Split wall segments around door
+                                                for (let i = wallSegments.length - 1; i >= 0; i--) {
+                                                    const segment = wallSegments[i];
+                                                    if (doorTop < segment.end && doorBottom > segment.start) {
+                                                        // Door overlaps this segment - split it
+                                                        wallSegments.splice(i, 1);
+                                                        if (segment.start < doorTop) {
+                                                            wallSegments.push({start: segment.start, end: doorTop});
+                                                        }
+                                                        if (doorBottom < segment.end) {
+                                                            wallSegments.push({start: doorBottom, end: segment.end});
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+
+                                    // Create wall segments
+                                    wallSegments.forEach((segment, segIndex) => {
+                                        if (segment.end > segment.start) {
+                                            walls.push({
+                                                x: x - thickness/2,
+                                                y: segment.start,
+                                                width: thickness,
+                                                height: segment.end - segment.start,
+                                                type: 'wall',
+                                                color: color
+                                            });
+                                            console.log(`Created vertical wall segment ${index}.${segIndex}: x=${x}, y=${segment.start} to ${segment.end}`);
+                                        }
+                                    });
+                                }
                             });
+
+                            console.log('Generated', walls.length, 'wall segments from start/end coordinates');
+                        } else {
+                            console.log('No walls defined in building configuration');
                         }
 
-                        // South wall
-                        if (hasSouthDoor) {
-                            const southDoor = building.doors.find(d => d.wall === 'south');
-                            const southDoorWidth = southDoor.width || 32;
-                            const pos = southDoor.position || 'center';
-
-                            // Calculate door X position
-                            let southDoorX;
-                            if (pos === 'left') southDoorX = cabinLeft + southDoorWidth / 2;
-                            else if (pos === 'right') southDoorX = cabinRight - southDoorWidth / 2;
-                            else southDoorX = (cabinLeft + cabinRight) / 2; // center
-
-                            const doorGapLeft = southDoorX - southDoorWidth / 2;
-                            const doorGapRight = southDoorX + southDoorWidth / 2;
-
-                            // Left side of south wall
-                            if (doorGapLeft > cabinLeft) {
-                                walls.push({
-                                    x: cabinLeft,
-                                    y: cabinBottom - wallThickness,
-                                    width: doorGapLeft - cabinLeft,
-                                    height: wallThickness,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                            // Right side of south wall
-                            if (doorGapRight < cabinRight) {
-                                walls.push({
-                                    x: doorGapRight,
-                                    y: cabinBottom - wallThickness,
-                                    width: cabinRight - doorGapRight,
-                                    height: wallThickness,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                        } else {
-                            // Solid south wall
-                            walls.push({
-                                x: cabinLeft,
-                                y: cabinBottom - wallThickness,
-                                width: cabinRight - cabinLeft,
-                                height: wallThickness,
-                                type: 'wall',
-                                color: wallColor
-                            });
-                        }
-
-                        // West wall
-                        if (hasWestDoor) {
-                            const westDoor = building.doors.find(d => d.wall === 'west');
-                            const westDoorWidth = westDoor.width || 32;
-                            const pos = westDoor.position || 'center';
-
-                            // Calculate door Y position
-                            let westDoorY;
-                            if (pos === 'top') westDoorY = cabinTop + westDoorWidth / 2;
-                            else if (pos === 'bottom') westDoorY = cabinBottom - westDoorWidth / 2;
-                            else westDoorY = (cabinTop + cabinBottom) / 2; // center
-
-                            const doorGapTop = westDoorY - westDoorWidth / 2;
-                            const doorGapBottom = westDoorY + westDoorWidth / 2;
-
-                            // Top part of west wall
-                            if (doorGapTop > cabinTop + wallThickness) {
-                                walls.push({
-                                    x: cabinLeft,
-                                    y: cabinTop + wallThickness,
-                                    width: wallThickness,
-                                    height: doorGapTop - (cabinTop + wallThickness),
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                            // Bottom part of left wall
-                            if (doorGapBottom < cabinBottom - wallThickness) {
-                                walls.push({
-                                    x: cabinLeft,
-                                    y: doorGapBottom,
-                                    width: wallThickness,
-                                    height: (cabinBottom - wallThickness) - doorGapBottom,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                        } else {
-                            // Solid left wall
-                            walls.push({
-                                x: cabinLeft,
-                                y: cabinTop + wallThickness,
-                                width: wallThickness,
-                                height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
-                                type: 'wall',
-                                color: wallColor
-                            });
-                        }
-
-                        // East wall
-                        if (hasEastDoor) {
-                            const eastDoor = building.doors.find(d => d.wall === 'east');
-                            const eastDoorWidth = eastDoor.width || 32;
-                            const pos = eastDoor.position || 'center';
-
-                            // Calculate door Y position
-                            let eastDoorY;
-                            if (pos === 'top') eastDoorY = cabinTop + eastDoorWidth / 2;
-                            else if (pos === 'bottom') eastDoorY = cabinBottom - eastDoorWidth / 2;
-                            else eastDoorY = (cabinTop + cabinBottom) / 2; // center
-
-                            const doorGapTop = eastDoorY - eastDoorWidth / 2;
-                            const doorGapBottom = eastDoorY + eastDoorWidth / 2;
-
-                            // Top part of east wall
-                            if (doorGapTop > cabinTop + wallThickness) {
-                                walls.push({
-                                    x: cabinRight - wallThickness,
-                                    y: cabinTop + wallThickness,
-                                    width: wallThickness,
-                                    height: doorGapTop - (cabinTop + wallThickness),
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                            // Bottom part of right wall
-                            if (doorGapBottom < cabinBottom - wallThickness) {
-                                walls.push({
-                                    x: cabinRight - wallThickness,
-                                    y: doorGapBottom,
-                                    width: wallThickness,
-                                    height: (cabinBottom - wallThickness) - doorGapBottom,
-                                    type: 'wall',
-                                    color: wallColor
-                                });
-                            }
-                        } else {
-                            // Solid right wall
-                            walls.push({
-                                x: cabinRight - wallThickness,
-                                y: cabinTop + wallThickness,
-                                width: wallThickness,
-                                height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
-                                type: 'wall',
-                                color: wallColor
-                            });
-                        }
-
-                        console.log('Generated cabin walls with dynamic gaps:', walls.length, 'wall segments');
                     }
 
-                    // Generate doors for this building
+                    // Generate doors for this building (doors are already cut into walls above)
                     if (building.doors) {
                         console.log('Found', building.doors.length, 'doors for', building.name);
                         building.doors.forEach(doorDef => {
-                            const doorWidth = doorDef.width || 32;
-                            const doorThickness = 12;
+                            // Door openings are already created in the wall generation above
+                            // Just create the door visual element
+                            const door = {
+                                x: doorDef.x - doorDef.width/2,
+                                y: doorDef.y - doorDef.height/2,
+                                width: doorDef.width,
+                                height: doorDef.height,
+                                orientation: doorDef.width > doorDef.height ? 'horizontal' : 'vertical',
+                                type: 'door',
+                                color: doorDef.color || '#8B4513',
+                                building: building.name,
+                                open: false,
+                                openAmount: 0,
+                                targetOpen: 0
+                            };
 
-                            // Use new simple wall-based system
-                            const wall = doorDef.wall;
-                            const position = doorDef.position || 'center';
-
-                            if (!wall) {
-                                console.error('Door missing wall property:', doorDef);
-                                return;
-                            }
-
-                            let door;
-                            let doorX, doorY, orientation;
-
-                            // Calculate door position based on wall and position
-                            switch (wall) {
-                                case 'south':
-                                    orientation = 'horizontal';
-                                    doorY = cabinBottom - wallThickness + (wallThickness - doorThickness) / 2;
-                                    if (position === 'left') doorX = cabinLeft + doorWidth / 2;
-                                    else if (position === 'right') doorX = cabinRight - doorWidth / 2;
-                                    else doorX = (cabinLeft + cabinRight) / 2; // center
-                                    door = {
-                                        x: doorX - doorWidth / 2,
-                                        y: doorY,
-                                        width: doorWidth,
-                                        height: doorThickness,
-                                        orientation: orientation,
-                                        color: doorDef.color || '#8B4513',
-                                        building: building.name,
-                                        open: false,
-                                        openAmount: 0,
-                                        targetOpen: 0
-                                    };
-                                    break;
-
-                                case 'north':
-                                    orientation = 'horizontal';
-                                    doorY = cabinTop + (wallThickness - doorThickness) / 2;
-                                    if (position === 'left') doorX = cabinLeft + doorWidth / 2;
-                                    else if (position === 'right') doorX = cabinRight - doorWidth / 2;
-                                    else doorX = (cabinLeft + cabinRight) / 2; // center
-                                    door = {
-                                        x: doorX - doorWidth / 2,
-                                        y: doorY,
-                                        width: doorWidth,
-                                        height: doorThickness,
-                                        orientation: orientation,
-                                        color: doorDef.color || '#8B4513',
-                                        building: building.name,
-                                        open: false,
-                                        openAmount: 0,
-                                        targetOpen: 0
-                                    };
-                                    break;
-
-                                case 'east':
-                                    orientation = 'vertical';
-                                    doorX = cabinRight - wallThickness + (wallThickness - doorThickness) / 2;
-                                    if (position === 'top') doorY = cabinTop + doorWidth / 2;
-                                    else if (position === 'bottom') doorY = cabinBottom - doorWidth / 2;
-                                    else doorY = (cabinTop + cabinBottom) / 2; // center
-                                    door = {
-                                        x: doorX,
-                                        y: doorY - doorWidth / 2,
-                                        width: doorThickness,
-                                        height: doorWidth,
-                                        orientation: orientation,
-                                        color: doorDef.color || '#8B4513',
-                                        building: building.name,
-                                        open: false,
-                                        openAmount: 0,
-                                        targetOpen: 0
-                                    };
-                                    break;
-
-                                case 'west':
-                                    orientation = 'vertical';
-                                    doorX = cabinLeft + (wallThickness - doorThickness) / 2;
-                                    if (position === 'top') doorY = cabinTop + doorWidth / 2;
-                                    else if (position === 'bottom') doorY = cabinBottom - doorWidth / 2;
-                                    else doorY = (cabinTop + cabinBottom) / 2; // center
-                                    door = {
-                                        x: doorX,
-                                        y: doorY - doorWidth / 2,
-                                        width: doorThickness,
-                                        height: doorWidth,
-                                        orientation: orientation,
-                                        color: doorDef.color || '#8B4513',
-                                        building: building.name,
-                                        open: false,
-                                        openAmount: 0,
-                                        targetOpen: 0
-                                    };
-                                    break;
-                            }
-
-                            if (door) {
-                                doors.push(door);
-                                console.log('Added door on', wall, 'wall at', position, 'position:', door);
-                            }
+                            doors.push(door);
+                            console.log('Created door at', doorDef.x, doorDef.y, 'size', doorDef.width + 'x' + doorDef.height);
                         });
                     }
                 });
