@@ -469,13 +469,14 @@
             ctx.textBaseline = 'top';
 
             // Initialize game elements
-            if (typeof createWalls === 'function') {
-                createWalls();
-                generateDemoStructures();
+            if (typeof generateLevelStructures === 'function') {
+                generateLevelStructures();
             }
             if (typeof player !== 'undefined') {
-                player.x = 0; // Start at grid-aligned building center
-                player.y = 0;
+                // Set player spawn based on current level
+                const spawnPos = getPlayerSpawnPosition();
+                player.x = spawnPos.x;
+                player.y = spawnPos.y;
                 initializeCamera(); // Initialize camera system
             }
         }
@@ -592,7 +593,7 @@
             y: 0,
             radius: 15,
             color: '#00f',
-            speed: 5,
+            speed: 2.5,
             frame: 0,
             lastFrameChange: Date.now(),
             variant: 0,
@@ -641,7 +642,213 @@
         ];
 
         let playerDirection = { x: 0, y: -1 };
-        let currentWeapon = 'axe';
+
+        // Level system - moved up to fix initialization order
+        const gameLevel = {
+            current: 1,
+            name: "Forest Lodge Outbreak",
+            objective: "Clear the infected cabin",
+            isComplete: false,
+            completionTime: null
+        };
+
+        // Level-specific configurations
+        const levelConfigs = {
+            1: {
+                name: "Forest Lodge Outbreak",
+                objective: "Clear the infected cabin",
+                worldSize: 640, // Smaller world for focused cabin scenario
+                spawnPosition: () => {
+                    const cabinDoorPos = GridSystem.gridToWorld(0, 1);
+                    return { x: cabinDoorPos.x, y: cabinDoorPos.y + 128 }; // South of cabin door
+                },
+                availableWeapons: ['pistol'], // Only pistol for level 1
+                weaponSlotMapping: { 'pistol': 1 }, // Pistol should be slot 1, not 2
+                features: {
+                    chestsEnabled: false, // No loot chests in level 1 - keep it focused
+                    randomEnemySpawning: false, // Already handled elsewhere
+                    powerUpsEnabled: false // Could disable power-ups too if needed
+                },
+                completion: {
+                    type: 'killAllEnemies', // Other types: 'survive', 'collect', 'reach'
+                    description: 'Clear the infected cabin',
+                    checkComplete: () => {
+                        // Level 1: Complete when all zombies (cabin zombie) are dead
+                        return zombies.length === 0;
+                    }
+                },
+                structures: {
+                    // Cabin structure with walls and door
+                    buildings: [
+                        {
+                            name: 'cabin',
+                            walls: [
+                                { gridX: -1, gridY: -2 }, { gridX: 0, gridY: -2 }, { gridX: 1, gridY: -2 }, // North wall
+                                { gridX: -1, gridY: -1 }, { gridX: 1, gridY: -1 }, // Side walls (middle)
+                                { gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }, // Side walls (middle)
+                                { gridX: -1, gridY: 1 }, { gridX: 1, gridY: 1 }, // South wall sides (door at 0,1)
+                            ],
+                            doors: [
+                                {
+                                    gridX: 0, gridY: 1, // South side of cabin
+                                    orientation: 'horizontal', // 'horizontal' or 'vertical'
+                                    width: 32, // Door width in pixels
+                                    color: '#8B4513' // Brown door
+                                }
+                            ]
+                        }
+                    ],
+                    // Trees around the cabin
+                    trees: [
+                        { gridX: -4, gridY: -2, type: 'oak', size: 'medium' },
+                        { gridX: 3, gridY: -1, type: 'oak', size: 'large' },
+                        { gridX: -2, gridY: 4, type: 'oak', size: 'small' },
+                    ],
+                    // Rocks for resource gathering
+                    rocks: [
+                        { gridX: -3, gridY: 2, type: 'granite', size: 'medium' },
+                        { gridX: 4, gridY: 1, type: 'boulder', size: 'small' },
+                    ],
+                    // Enemies confined to specific areas
+                    enemies: [
+                        {
+                            type: 'zombie',
+                            gridX: 0, gridY: 0, // Center of cabin
+                            confined: true,
+                            bounds: { minX: -0.7, maxX: 0.7, minY: -1.7, maxY: 0.7 } // Tighter cabin interior
+                        }
+                    ]
+                }
+            }
+            // Future levels will be added here
+        };
+
+        function getPlayerSpawnPosition() {
+            const config = levelConfigs[gameLevel.current];
+            return config ? config.spawnPosition() : { x: 0, y: 0 };
+        }
+
+        // Level completion system
+        function checkLevelCompletion() {
+            if (gameLevel.isComplete) return; // Already completed
+
+            const config = levelConfigs[gameLevel.current];
+            if (!config || !config.completion) return;
+
+            if (config.completion.checkComplete()) {
+                gameLevel.isComplete = true;
+                gameLevel.completionTime = Date.now();
+                showLevelCompleteScreen();
+            }
+        }
+
+        function showLevelCompleteScreen() {
+            // Pause the game
+            isGameOver = true;
+
+            // Show completion UI (we'll create this)
+            const completionScreen = document.createElement('div');
+            completionScreen.id = 'level-complete-screen';
+            completionScreen.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                color: white;
+                font-family: 'Press Start 2P', cursive;
+                text-align: center;
+            `;
+
+            const config = levelConfigs[gameLevel.current];
+            completionScreen.innerHTML = `
+                <h1 style="color: #4CAF50; font-size: 2rem; margin-bottom: 20px;">LEVEL COMPLETE!</h1>
+                <p style="font-size: 1.2rem; margin-bottom: 10px;">${config.name}</p>
+                <p style="font-size: 1rem; margin-bottom: 30px;">${config.completion.description} ✓</p>
+                <button id="next-level-btn" class="btn" style="margin: 10px;">Next Level</button>
+                <button id="restart-level-btn" class="btn" style="margin: 10px;">Restart Level</button>
+            `;
+
+            document.body.appendChild(completionScreen);
+
+            // Event listeners for buttons
+            document.getElementById('next-level-btn').addEventListener('click', () => {
+                // TODO: Load next level when available
+                document.body.removeChild(completionScreen);
+                alert('Next level not yet implemented!');
+            });
+
+            document.getElementById('restart-level-btn').addEventListener('click', () => {
+                document.body.removeChild(completionScreen);
+                resetGame();
+            });
+        }
+
+        // Game reset function - called from start game and level completion
+        function resetGame() {
+            isGameOver = false;
+            isInMenu = false;
+            sessionXP = 0; // Reset session XP for new game
+            playerHealth = maxHealth;
+            invincibilityFrames = 0;
+            // Reset all power-ups
+            activePowerUps = {
+                speedBoost: 0,
+                damageMultiplier: 0,
+                shield: 0,
+                multiShot: 0,
+                rapidFire: 0
+            };
+            zombies = [];
+            // Reset level completion state
+            gameLevel.isComplete = false;
+            gameLevel.completionTime = null;
+            skeletons = [];
+            playerBullets = [];
+            enemyBullets = [];
+            explosions = [];
+            missiles = [];
+            chests = [];
+            muzzleFlashes = [];
+            bloodSplatters = [];
+            damageNumbers = [];
+            screenShake = { intensity: 0, duration: 0, x: 0, y: 0 };
+            ammo = { ...maxAmmo };
+            // Reset player spawn based on current level
+            const spawnPos = getPlayerSpawnPosition();
+            player.x = spawnPos.x;
+            player.y = spawnPos.y;
+            initializeCamera(); // Reset camera on game restart
+            updateSessionXPDisplay();
+            highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
+            gameUI.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            startMenu.style.display = 'none';
+
+            // Regenerate level structures and enemies
+            generateLevelStructures();
+
+            updateAmmoDisplay();
+            updateHealthDisplay();
+            gameLoop();
+        }
+
+        // Set initial weapon based on level
+        function getInitialWeapon() {
+            const config = levelConfigs[gameLevel.current];
+            if (config && config.availableWeapons.length > 0) {
+                return config.availableWeapons[0]; // First available weapon
+            }
+            return 'axe'; // Default fallback
+        }
+
+        let currentWeapon = getInitialWeapon();
 
         // Gamepad detection and management
         function detectGamepad() {
@@ -2480,59 +2687,210 @@
             }
         };
 
-        // Demo structures - using the new grid system
-        function generateDemoStructures() {
-            const additionalWalls = [];
+        // Generate structures based on current level configuration
+        function generateLevelStructures() {
+            console.log('Generating level structures for level', gameLevel.current);
+            const config = levelConfigs[gameLevel.current];
+            if (!config || !config.structures) {
+                console.warn('No structure configuration found for level', gameLevel.current);
+                return;
+            }
 
-            // Create a secondary building to the north (coordinates will be snapped to grid centers)
-            const northBuilding = StructureGenerator.createBuilding(0, -256, 2, 2, {
-                doorSides: ['bottom'],
-                wallColor: '#8B7D6B', // Tan color
-                doorColor: '#6B5B47'
-            });
-            additionalWalls.push(...northBuilding.walls);
-            doors.push(...northBuilding.doors);
+            // Clear existing structures
+            walls.length = 0;
+            doors.length = 0;
+            console.log('Cleared walls and doors arrays');
 
-            // Create a watchtower to the east (coordinates will be snapped to grid centers)
-            const eastTower = StructureGenerator.createWatchtower(256, 0);
-            additionalWalls.push(...eastTower.walls);
+            const structures = config.structures;
+            console.log('Level structures config:', structures);
 
-            // Create defensive wall segments (coordinates will be snapped to grid centers)
-            const wallSegments = [
-                StructureGenerator.createWallSegment(-64, 128, 192, 128), // South wall (y=128 is grid center)
-                StructureGenerator.createWallSegment(-64, -64, -64, 128), // West wall (x=-64 is grid center)
-                StructureGenerator.createWallSegment(192, -64, 192, 128)   // East wall (x=192 is grid center)
-            ];
+            // Generate buildings (walls and doors)
+            if (structures.buildings) {
+                console.log('Found', structures.buildings.length, 'buildings');
+                structures.buildings.forEach(building => {
+                    console.log('Processing building:', building.name);
 
-            wallSegments.forEach(segments => {
-                additionalWalls.push(...segments);
-            });
+                    // Calculate shared building properties
+                    const wallThickness = 16;
+                    const wallColor = building.wallColor || '#8B7D6B';
 
-            // Add all new walls to the global walls array
-            walls.push(...additionalWalls);
+                    // Get door width from the actual door definition
+                    const doorWidth = building.doors && building.doors.length > 0 ?
+                        (building.doors[0].width || 32) : 32;
 
-            // Create some demo trees using grid coordinates
-            const demoTrees = [
-                StructureGenerator.createTree(-2, -4, null, 'oak', 'large'),  // Grid position (-2, -4)
-                StructureGenerator.createTree(4, -2, null, 'oak', 'medium'),  // Grid position (4, -2)
-                StructureGenerator.createTree(-3, 3, null, 'oak', 'small'),   // Grid position (-3, 3)
-                StructureGenerator.createTree(2, 4, null, 'oak', 'medium'),   // Grid position (2, 4)
-            ];
+                    // Calculate cabin bounds (shared between walls and doors)
+                    const cabinLeft = GridSystem.gridToWorld(-1, 0).x - GRID_SIZE/2;
+                    const cabinRight = GridSystem.gridToWorld(1, 0).x + GRID_SIZE/2;
+                    const cabinTop = GridSystem.gridToWorld(0, -2).y - GRID_SIZE/2;
+                    const cabinBottom = GridSystem.gridToWorld(0, 1).y + GRID_SIZE/2;
 
-            // Create demo rocks
-            const demoRocks = [
-                StructureGenerator.createRock(-1, -2, null, 'granite', 'medium'),  // Grid position (-1, -2)
-                StructureGenerator.createRock(3, 1, null, 'boulder', 'large'),     // Grid position (3, 1)
-                StructureGenerator.createRock(-4, 1, null, 'granite', 'small'),    // Grid position (-4, 1)
-                StructureGenerator.createRock(1, -3, null, 'boulder', 'medium'),   // Grid position (1, -3)
-            ];
+                    // Generate walls for this building
+                    if (building.walls) {
+                        console.log('Found', building.walls.length, 'walls for', building.name);
 
-            // Store trees and rocks globally for collision and rendering
+                        // North wall (horizontal)
+                        walls.push({
+                            x: cabinLeft,
+                            y: cabinTop,
+                            width: cabinRight - cabinLeft,
+                            height: wallThickness,
+                            type: 'wall',
+                            color: wallColor
+                        });
+
+                        // South wall (horizontal) with door gap in center
+                        const doorGapLeft = (cabinLeft + cabinRight - doorWidth) / 2;
+                        const doorGapRight = doorGapLeft + doorWidth;
+
+                        // Left side of south wall
+                        walls.push({
+                            x: cabinLeft,
+                            y: cabinBottom - wallThickness,
+                            width: doorGapLeft - cabinLeft,
+                            height: wallThickness,
+                            type: 'wall',
+                            color: wallColor
+                        });
+                        // Right side of south wall
+                        walls.push({
+                            x: doorGapRight,
+                            y: cabinBottom - wallThickness,
+                            width: cabinRight - doorGapRight,
+                            height: wallThickness,
+                            type: 'wall',
+                            color: wallColor
+                        });
+
+                        // Left wall (vertical) - avoid overlapping corners
+                        walls.push({
+                            x: cabinLeft,
+                            y: cabinTop + wallThickness,
+                            width: wallThickness,
+                            height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
+                            type: 'wall',
+                            color: wallColor
+                        });
+
+                        // Right wall (vertical) - avoid overlapping corners
+                        walls.push({
+                            x: cabinRight - wallThickness,
+                            y: cabinTop + wallThickness,
+                            width: wallThickness,
+                            height: (cabinBottom - wallThickness) - (cabinTop + wallThickness),
+                            type: 'wall',
+                            color: wallColor
+                        });
+
+                        console.log('Generated cabin walls:', walls.length, 'wall segments');
+                    }
+
+                    // Generate doors for this building
+                    if (building.doors) {
+                        console.log('Found', building.doors.length, 'doors for', building.name);
+                        building.doors.forEach(doorDef => {
+                            const doorWidth = doorDef.width || 32;
+                            const doorThickness = 12;
+
+                            // Position door in the center of the door gap
+                            const door = {
+                                x: (cabinLeft + cabinRight - doorWidth) / 2,
+                                y: cabinBottom - wallThickness + (wallThickness - doorThickness) / 2,
+                                width: doorWidth,
+                                height: doorThickness,
+                                orientation: doorDef.orientation || 'horizontal',
+                                color: doorDef.color || '#8B4513',
+                                building: building.name,
+                                open: false,
+                                openAmount: 0,
+                                targetOpen: 0
+                            };
+                            doors.push(door);
+                            console.log('Added door in cabin gap:', door);
+                        });
+                    }
+                });
+                console.log('Final walls array:', walls);
+                console.log('Final doors array:', doors);
+            } else {
+                console.log('No buildings found in structures');
+            }
+
+            // Generate trees
+            const levelTrees = [];
+            if (structures.trees) {
+                structures.trees.forEach(treeDef => {
+                    const tree = StructureGenerator.createTree(
+                        treeDef.gridX,
+                        treeDef.gridY,
+                        treeDef.seed || null,
+                        treeDef.type || 'oak',
+                        treeDef.size || 'medium'
+                    );
+                    levelTrees.push(tree);
+                });
+            }
+
+            // Generate rocks
+            const levelRocks = [];
+            if (structures.rocks) {
+                structures.rocks.forEach(rockDef => {
+                    const rock = StructureGenerator.createRock(
+                        rockDef.gridX,
+                        rockDef.gridY,
+                        rockDef.seed || null,
+                        rockDef.type || 'granite',
+                        rockDef.size || 'medium'
+                    );
+                    levelRocks.push(rock);
+                });
+            }
+
+            // Store objects globally for collision and rendering
             if (!window.gameObjects) window.gameObjects = {};
-            window.gameObjects.trees = demoTrees;
-            window.gameObjects.rocks = demoRocks;
+            window.gameObjects.trees = levelTrees;
+            window.gameObjects.rocks = levelRocks;
 
+            // Generate level-specific enemies
+            if (structures.enemies) {
+                structures.enemies.forEach(enemyDef => {
+                    if (enemyDef.type === 'zombie') {
+                        createLevelZombie(enemyDef);
+                    }
+                    // Future: could add skeletons, bosses, etc.
+                });
+            }
         }
+
+        // Create level-specific zombie based on enemy definition
+        function createLevelZombie(enemyDef) {
+            const pos = GridSystem.gridToWorld(enemyDef.gridX, enemyDef.gridY);
+            const zombie = {
+                x: pos.x,
+                y: pos.y - 16, // Slightly offset
+                size: 15,
+                speed: 0.3,
+                frame: 0,
+                lastFrameChange: Date.now(),
+                active: true,
+                idleDirection: { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 }
+            };
+
+            // Add confinement if specified
+            if (enemyDef.confined && enemyDef.bounds) {
+                zombie.confinedToCabin = true;
+                // Account for zombie size when setting bounds (zombie radius = size/2)
+                const zombieRadius = zombie.size / 2;
+                zombie.cabinBounds = {
+                    minX: GridSystem.gridToWorld(enemyDef.bounds.minX, 0).x + zombieRadius,
+                    maxX: GridSystem.gridToWorld(enemyDef.bounds.maxX, 0).x - zombieRadius,
+                    minY: GridSystem.gridToWorld(0, enemyDef.bounds.minY).y + zombieRadius,
+                    maxY: GridSystem.gridToWorld(0, enemyDef.bounds.maxY).y - zombieRadius
+                };
+            }
+
+            zombies.push(zombie);
+        }
+
 
         // Camera system - Among Us style follow camera
         const camera = {
@@ -2718,6 +3076,16 @@
                 ctx.fillStyle = wall.color;
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
             });
+
+            // Draw world boundary (temporary debug visualization)
+            const config = levelConfigs[gameLevel.current];
+            const worldSize = config ? config.worldSize : 1500;
+
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 10]); // Dashed line
+            ctx.strokeRect(-worldSize, -worldSize, worldSize * 2, worldSize * 2);
+            ctx.setLineDash([]); // Reset line dash
 
             // Draw trees with visual foliage (rendered after walls)
             if (window.gameObjects && window.gameObjects.trees) {
@@ -3304,11 +3672,56 @@
                     dy = gamepadInput.dy;
                     usingGamepad = true;
                 } else {
-                    // Fall back to keyboard controls
-                    if (keys.ArrowUp || keys.w) dy = -currentSpeed;
-                    if (keys.ArrowDown || keys.s) dy = currentSpeed;
-                    if (keys.ArrowLeft || keys.a) dx = -currentSpeed;
-                    if (keys.ArrowRight || keys.d) dx = currentSpeed;
+                    // Fall back to keyboard controls with variable speed
+                    const now = Date.now();
+                    let keySpeedMultiplier = 1.0; // Default to full speed
+
+                    // Track key press duration for variable speed
+                    if (!window.keyPressTime) window.keyPressTime = {};
+
+                    // Check if any movement key is pressed and track duration
+                    const movementKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 's', 'a', 'd'];
+                    let anyKeyPressed = false;
+
+                    for (const key of movementKeys) {
+                        if (keys[key]) {
+                            anyKeyPressed = true;
+                            if (!window.keyPressTime[key]) {
+                                window.keyPressTime[key] = now;
+                            }
+                        } else {
+                            delete window.keyPressTime[key];
+                        }
+                    }
+
+                    if (anyKeyPressed) {
+                        // Find the longest held key for speed calculation
+                        let maxHoldTime = 0;
+                        for (const key of movementKeys) {
+                            if (keys[key] && window.keyPressTime[key]) {
+                                const holdTime = now - window.keyPressTime[key];
+                                maxHoldTime = Math.max(maxHoldTime, holdTime);
+                            }
+                        }
+
+                        // Progressive speed: 0.3 (walk) -> 1.0 (jog) over 800ms
+                        if (maxHoldTime < 200) {
+                            keySpeedMultiplier = 0.3; // Walking speed for quick taps
+                        } else if (maxHoldTime < 800) {
+                            // Smooth transition from walk to jog
+                            const progress = (maxHoldTime - 200) / 600;
+                            keySpeedMultiplier = 0.3 + (progress * 0.7); // 0.3 to 1.0
+                        } else {
+                            keySpeedMultiplier = 1.0; // Full jog speed
+                        }
+                    }
+
+                    // Apply movement with variable speed
+                    const variableSpeed = currentSpeed * keySpeedMultiplier;
+                    if (keys.ArrowUp || keys.w) dy = -variableSpeed;
+                    if (keys.ArrowDown || keys.s) dy = variableSpeed;
+                    if (keys.ArrowLeft || keys.a) dx = -variableSpeed;
+                    if (keys.ArrowRight || keys.d) dx = variableSpeed;
                 }
 
                 // Normalize vector for consistent diagonal speed (only for keyboard, gamepad already normalized)
@@ -3425,8 +3838,9 @@
                 player.frame = 0;
             }
 
-            // World boundary checks - large world boundaries
-            const worldSize = 1500; // Large world, camera will keep player visible
+            // World boundary checks - use level-specific world size
+            const config = levelConfigs[gameLevel.current];
+            const worldSize = config ? config.worldSize : 1500; // Fallback to 1500 if no config
             const minX = -worldSize + player.radius;
             const maxX = worldSize - player.radius;
             const minY = -worldSize + player.radius;
@@ -3547,9 +3961,10 @@
                 // Option 1: Current power curve (good for precise movement)
                 // const speedMultiplier = Math.pow(stickMagnitude, 1.5) * 0.75;
 
-                // Option 2: Smoother S-curve (more gradual acceleration, then faster)
+                // Option 2: Improved S-curve (walk to jog transition: 0.3 to 1.0)
                 const t = stickMagnitude;
-                const speedMultiplier = (3 * t * t - 2 * t * t * t) * 0.5;
+                const normalizedCurve = 3 * t * t - 2 * t * t * t; // 0 to 1 smooth curve
+                const speedMultiplier = 0.3 + (normalizedCurve * 0.7); // 0.3 (walk) to 1.0 (jog)
 
                 // Option 3: Even smoother cubic curve
                 // const speedMultiplier = Math.pow(stickMagnitude, 3) * 0.75;
@@ -3637,16 +4052,18 @@
 
             // Weapon switching with shoulder buttons
             if (getButtonPressed(4)) { // LB - Previous weapon
-                const currentIndex = weapons.indexOf(currentWeapon);
-                const prevIndex = (currentIndex - 1 + weapons.length) % weapons.length;
-                currentWeapon = weapons[prevIndex];
+                const availableWeapons = getAvailableWeapons();
+                const currentIndex = availableWeapons.indexOf(currentWeapon);
+                const prevIndex = (currentIndex - 1 + availableWeapons.length) % availableWeapons.length;
+                currentWeapon = availableWeapons[prevIndex];
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (getButtonPressed(5)) { // RB - Next weapon
-                const currentIndex = weapons.indexOf(currentWeapon);
-                const nextIndex = (currentIndex + 1) % weapons.length;
-                currentWeapon = weapons[nextIndex];
+                const availableWeapons = getAvailableWeapons();
+                const currentIndex = availableWeapons.indexOf(currentWeapon);
+                const nextIndex = (currentIndex + 1) % availableWeapons.length;
+                currentWeapon = availableWeapons[nextIndex];
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
@@ -3684,7 +4101,9 @@
             let x, y;
             const buildingSize = 192; // Grid-aligned building size
             const buildingHalfSize = buildingSize / 2;
-            const worldSize = 1000; // Spawn within 1000 units from center
+            // Use level-specific world size for enemy spawning
+            const config = levelConfigs[gameLevel.current];
+            const worldSize = config ? config.worldSize : 1000; // Fallback to 1000 if no config
             const playerSafeDistance = 200; // Safe distance around player
 
             // Generate random position anywhere in world, but not inside building or near player
@@ -3715,7 +4134,9 @@
             let x, y;
             const buildingSize = 192; // Grid-aligned building size
             const buildingHalfSize = buildingSize / 2;
-            const worldSize = 1000; // Spawn within 1000 units from center
+            // Use level-specific world size for enemy spawning
+            const config = levelConfigs[gameLevel.current];
+            const worldSize = config ? config.worldSize : 1000; // Fallback to 1000 if no config
             const playerSafeDistance = 200; // Safe distance around player
 
             // Generate random position anywhere in world, but not inside building or near player
@@ -3810,12 +4231,21 @@
                     const angle = Math.atan2(player.y - zombie.y, player.x - zombie.x);
                     const dx = Math.cos(angle) * zombie.speed;
                     const dy = Math.sin(angle) * zombie.speed;
-                    
-                    if (!checkEnemyWallCollision(zombie.x + dx, zombie.y, zombie.size)) {
-                        zombie.x += dx;
+
+                    let newX = zombie.x + dx;
+                    let newY = zombie.y + dy;
+
+                    // Check cabin confinement for special cabin zombie
+                    if (zombie.confinedToCabin && zombie.cabinBounds) {
+                        newX = Math.max(zombie.cabinBounds.minX, Math.min(zombie.cabinBounds.maxX, newX));
+                        newY = Math.max(zombie.cabinBounds.minY, Math.min(zombie.cabinBounds.maxY, newY));
                     }
-                    if (!checkEnemyWallCollision(zombie.x, zombie.y + dy, zombie.size)) {
-                        zombie.y += dy;
+
+                    if (!checkEnemyWallCollision(newX, zombie.y, zombie.size)) {
+                        zombie.x = newX;
+                    }
+                    if (!checkEnemyWallCollision(zombie.x, newY, zombie.size)) {
+                        zombie.y = newY;
                     }
 
                     // Animate zombie
@@ -3839,8 +4269,17 @@
                          zombie.idleDirection.y = Math.sin(newAngle);
                     }
                     
-                    zombie.x += zombie.idleDirection.x * zombie.speed * 0.5;
-                    zombie.y += zombie.idleDirection.y * zombie.speed * 0.5;
+                    let newIdleX = zombie.x + zombie.idleDirection.x * zombie.speed * 0.5;
+                    let newIdleY = zombie.y + zombie.idleDirection.y * zombie.speed * 0.5;
+
+                    // Check cabin confinement for idle movement
+                    if (zombie.confinedToCabin && zombie.cabinBounds) {
+                        newIdleX = Math.max(zombie.cabinBounds.minX, Math.min(zombie.cabinBounds.maxX, newIdleX));
+                        newIdleY = Math.max(zombie.cabinBounds.minY, Math.min(zombie.cabinBounds.maxY, newIdleY));
+                    }
+
+                    zombie.x = newIdleX;
+                    zombie.y = newIdleY;
 
                     if (Date.now() - zombie.lastFrameChange > ZOMBIE_ANIM_SPEED) {
                         zombie.frame = (zombie.frame + 1) % 2;
@@ -5040,60 +5479,40 @@
                 await requestMotionPermission();
             }
 
-            isGameOver = false;
-            isInMenu = false;
-            sessionXP = 0; // Reset session XP for new game
-            playerHealth = maxHealth;
-            invincibilityFrames = 0;
-            // Reset all power-ups
-            activePowerUps = {
-                speedBoost: 0,
-                damageMultiplier: 0,
-                shield: 0,
-                multiShot: 0,
-                rapidFire: 0
-            };
-            zombies = [];
-            skeletons = [];
-            playerBullets = [];
-            enemyBullets = [];
-            explosions = [];
-            missiles = [];
-            chests = [];
-            muzzleFlashes = [];
-            bloodSplatters = [];
-            damageNumbers = [];
-            screenShake = { intensity: 0, duration: 0, x: 0, y: 0 };
-            ammo = { ...maxAmmo };
-            player.x = 0; // Reset to grid-aligned building center
-            player.y = 0;
-            initializeCamera(); // Reset camera on game restart
-            updateSessionXPDisplay();
-            highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
-            gameUI.style.display = 'none';
-            gameOverScreen.style.display = 'none';
-            startMenu.style.display = 'none';
-            updateAmmoDisplay();
-            updateHealthDisplay();
-            gameLoop();
+            // Use the centralized reset function
+            resetGame();
         }
         
 
         function updateWeaponDisplay() {
+            // Get weapon slot number based on level configuration
+            const config = levelConfigs[gameLevel.current];
+            let slotNumber = 1; // Default
+
+            if (config && config.weaponSlotMapping && config.weaponSlotMapping[currentWeapon]) {
+                slotNumber = config.weaponSlotMapping[currentWeapon];
+            } else {
+                // Fallback to original numbering for levels without custom mapping
+                const defaultSlots = { 'axe': 1, 'pickaxe': 2, 'pistol': 3, 'shotgun': 4, 'assaultRifle': 5, 'fragGrenade': 6, 'nuke': 7, 'missile': 8 };
+                slotNumber = defaultSlots[currentWeapon] || 1;
+            }
+
             if (currentWeapon === 'axe') {
-                weaponDisplay.textContent = 'Weapon: Axe (1)';
+                weaponDisplay.textContent = `Weapon: Axe (${slotNumber})`;
+            } else if (currentWeapon === 'pickaxe') {
+                weaponDisplay.textContent = `Weapon: Pickaxe (${slotNumber})`;
             } else if (currentWeapon === 'pistol') {
-                weaponDisplay.textContent = 'Weapon: Pistol (2)';
+                weaponDisplay.textContent = `Weapon: Pistol (${slotNumber})`;
             } else if (currentWeapon === 'shotgun') {
-                weaponDisplay.textContent = 'Weapon: Shotgun (3)';
+                weaponDisplay.textContent = `Weapon: Shotgun (${slotNumber})`;
             } else if (currentWeapon === 'assaultRifle') {
-                weaponDisplay.textContent = 'Weapon: Assault Rifle (4)';
+                weaponDisplay.textContent = `Weapon: Assault Rifle (${slotNumber})`;
             } else if (currentWeapon === 'fragGrenade') {
-                weaponDisplay.textContent = 'Weapon: Frag Grenade (5)';
+                weaponDisplay.textContent = `Weapon: Frag Grenade (${slotNumber})`;
             } else if (currentWeapon === 'nuke') {
-                weaponDisplay.textContent = 'Weapon: Nuke (6)';
+                weaponDisplay.textContent = `Weapon: Nuke (${slotNumber})`;
             } else if (currentWeapon === 'missile') {
-                weaponDisplay.textContent = 'Weapon: Missile (7)';
+                weaponDisplay.textContent = `Weapon: Missile (${slotNumber})`;
             }
         }
         
@@ -5339,8 +5758,16 @@
             updatePowerUps();
 
             updatePlayerPosition();
-            spawnZombie();
-            spawnSkeleton();
+
+            // Level-based enemy spawning
+            if (gameLevel.current === 1) {
+                // Level 1: Only the cabin zombie, no random spawning
+                // Cabin zombie is created once in resetGame()
+            } else {
+                // Future levels: normal spawning
+                spawnZombie();
+                spawnSkeleton();
+            }
             updateZombies();
             updateSkeletons();
             updatePlayerBullets();
@@ -5351,7 +5778,11 @@
             updateBloodSplatters();
             updateDamageNumbers();
             updateExplosions();
-            spawnChest();
+            // Level-based chest spawning
+            const config = levelConfigs[gameLevel.current];
+            if (!config || !config.features || config.features.chestsEnabled !== false) {
+                spawnChest(); // Default: spawn chests unless explicitly disabled
+            }
             
             // New logic to check for and remove enemies inside the base
             zombies = zombies.filter(zombie => {
@@ -5385,6 +5816,9 @@
             });
 
             checkCollisions();
+
+            // Check for level completion
+            checkLevelCompletion();
 
             // Draw player with flashing effect if invincible
             if (invincibilityFrames > 0) {
@@ -5472,8 +5906,10 @@
         window.onload = function() {
             resizeCanvas();
             // Ensure player is centered and camera is properly initialized
-            player.x = 0;
-            player.y = 0;
+            // Set player spawn based on current level
+            const spawnPos = getPlayerSpawnPosition();
+            player.x = spawnPos.x;
+            player.y = spawnPos.y;
             initializeCamera();
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
@@ -5518,41 +5954,34 @@
                     }
                 }
             }
-            if (key === '1') {
-                currentWeapon = 'axe';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
+            // Weapon number keys - use level-specific mapping
+            const availableWeapons = getAvailableWeapons();
+            const config = levelConfigs[gameLevel.current];
+
+            if (config && config.weaponSlotMapping) {
+                // Use level-specific weapon slot mapping
+                for (const [weapon, slot] of Object.entries(config.weaponSlotMapping)) {
+                    if (key === slot.toString() && availableWeapons.includes(weapon)) {
+                        currentWeapon = weapon;
+                        updateWeaponDisplay();
+                        updateAmmoDisplay();
+                        break;
+                    }
+                }
+            } else {
+                // Fallback to original mapping for levels without custom mapping
+                if (key === '1' && availableWeapons.includes('axe')) {
+                    currentWeapon = 'axe';
+                    updateWeaponDisplay();
+                    updateAmmoDisplay();
+                }
+                if (key === '2' && availableWeapons.includes('pistol')) {
+                    currentWeapon = 'pistol';
+                    updateWeaponDisplay();
+                    updateAmmoDisplay();
+                }
             }
-            if (key === '2') {
-                currentWeapon = 'pistol';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
-            if (key === '3') {
-                currentWeapon = 'shotgun';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
-            if (key === '4') {
-                currentWeapon = 'assaultRifle';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
-            if (key === '5') {
-                currentWeapon = 'fragGrenade';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
-            if (key === '6') {
-                currentWeapon = 'nuke';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
-            if (key === '7') {
-                currentWeapon = 'missile';
-                updateWeaponDisplay();
-                updateAmmoDisplay();
-            }
+            // Rest of the weapon keys are handled by the fallback mapping above
         });
         
         document.addEventListener('keyup', (e) => {
@@ -5626,7 +6055,13 @@
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTime = 0;
-        const weapons = ['axe', 'pickaxe', 'pistol', 'shotgun', 'assaultRifle', 'fragGrenade', 'nuke', 'missile'];
+        // Get available weapons based on current level
+        function getAvailableWeapons() {
+            const config = levelConfigs[gameLevel.current];
+            return config ? config.availableWeapons : ['axe', 'pickaxe', 'pistol', 'shotgun', 'assaultRifle', 'fragGrenade', 'nuke', 'missile'];
+        }
+
+        const weapons = getAvailableWeapons();
 
         // Touch events for mobile
         canvas.addEventListener('touchstart', (e) => {
@@ -5694,18 +6129,19 @@
 
                 // Minimum swipe distance of 50px
                 if (swipeDistance > 50) {
-                    const currentWeaponIndex = weapons.indexOf(currentWeapon);
+                    const availableWeapons = getAvailableWeapons();
+                    const currentWeaponIndex = availableWeapons.indexOf(currentWeapon);
 
                     // Horizontal swipes change weapons
                     if (Math.abs(deltaX) > Math.abs(deltaY)) {
                         if (deltaX > 0) {
                             // Swipe right - next weapon
-                            const nextIndex = (currentWeaponIndex + 1) % weapons.length;
-                            currentWeapon = weapons[nextIndex];
+                            const nextIndex = (currentWeaponIndex + 1) % availableWeapons.length;
+                            currentWeapon = availableWeapons[nextIndex];
                         } else {
                             // Swipe left - previous weapon
-                            const prevIndex = (currentWeaponIndex - 1 + weapons.length) % weapons.length;
-                            currentWeapon = weapons[prevIndex];
+                            const prevIndex = (currentWeaponIndex - 1 + availableWeapons.length) % availableWeapons.length;
+                            currentWeapon = availableWeapons[prevIndex];
                         }
                         updateWeaponDisplay();
                         updateAmmoDisplay();
