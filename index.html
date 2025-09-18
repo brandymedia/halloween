@@ -652,6 +652,110 @@
             completionTime: null
         };
 
+        // Helper function to create buildings with simple grid coordinates
+        function createBuilding(name, gridBounds, doors = [], options = {}) {
+            // EXAMPLES:
+            // Small hut:  createBuilding('hut', { left: -0.5, right: 0.5, top: -0.5, bottom: 0.5 }, [{ wall: 'south' }])
+            // Large house: createBuilding('house', { left: -2, right: 2, top: -3, bottom: 2 }, [{ wall: 'south' }, { wall: 'north' }])
+            // L-shaped building: Use multiple createBuilding calls and position them adjacently
+            //
+            // gridBounds: { left: -1, right: 1, top: -2, bottom: 1 } (in grid units)
+            // doors: [{ wall: 'south', x: 0, width: 64 }] or [{ wall: 'east', y: -1, height: 64 }]
+
+            const wallThickness = options.wallThickness || 16;
+            const wallColor = options.wallColor || '#8B7D6B';
+
+            // Convert grid bounds to world coordinates
+            const leftWorld = gridBounds.left * 64;      // Grid to world conversion
+            const rightWorld = gridBounds.right * 64;
+            const topWorld = gridBounds.top * 64;
+            const bottomWorld = gridBounds.bottom * 64;
+
+            // Calculate wall positions (offset inward by half thickness so outer edges align to grid)
+            const walls = [];
+            const wallOffset = wallThickness / 2;
+
+            // North wall (top)
+            walls.push({
+                startX: leftWorld + wallOffset,
+                startY: topWorld + wallOffset,
+                endX: rightWorld - wallOffset,
+                endY: topWorld + wallOffset,
+                thickness: wallThickness
+            });
+
+            // South wall (bottom)
+            walls.push({
+                startX: leftWorld + wallOffset,
+                startY: bottomWorld - wallOffset,
+                endX: rightWorld - wallOffset,
+                endY: bottomWorld - wallOffset,
+                thickness: wallThickness
+            });
+
+            // West wall (left)
+            walls.push({
+                startX: leftWorld + wallOffset,
+                startY: topWorld,
+                endX: leftWorld + wallOffset,
+                endY: bottomWorld,
+                thickness: wallThickness
+            });
+
+            // East wall (right)
+            walls.push({
+                startX: rightWorld - wallOffset,
+                startY: topWorld,
+                endX: rightWorld - wallOffset,
+                endY: bottomWorld,
+                thickness: wallThickness
+            });
+
+            // Convert doors to world coordinates
+            const worldDoors = doors.map(door => {
+                let x, y, width, height;
+
+                if (door.wall === 'north' || door.wall === 'south') {
+                    // Horizontal walls - doors are horizontal (wide and short)
+                    x = door.x ? door.x * 64 : 0; // Use provided x or center
+                    width = door.width || 64;
+                    height = door.height || 12;
+
+                    if (door.wall === 'north') {
+                        y = topWorld + wallOffset;
+                    } else {
+                        y = bottomWorld - wallOffset;
+                    }
+                } else if (door.wall === 'west' || door.wall === 'east') {
+                    // Vertical walls - swap width/height for proper orientation
+                    y = door.y ? door.y * 64 : (topWorld + bottomWorld) / 2; // Use provided y or center of wall
+                    width = door.height || 12;  // Door depth (thinner than wall thickness, like N/S doors)
+                    height = door.width || 64; // Opening size (use width param as the opening height)
+
+                    if (door.wall === 'west') {
+                        x = leftWorld + wallOffset;
+                    } else {
+                        x = rightWorld - wallOffset;
+                    }
+                }
+
+                return {
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    color: door.color || '#8B4513'
+                };
+            });
+
+            return {
+                name: name,
+                walls: walls,
+                doors: worldDoors,
+                wallColor: wallColor
+            };
+        }
+
         // Level-specific configurations
         const levelConfigs = {
             1: {
@@ -680,25 +784,11 @@
                 structures: {
                     // Cabin structure with walls and door
                     buildings: [
-                        {
-                            name: 'cabin',
-                            walls: [
-                                // Walls positioned so outer edges align to actual grid intersections (not tile centers)
-                                { startX: -88, startY: -152, endX: 88, endY: -152, thickness: 16 }, // North wall (outer edge at -160 grid line)
-                                { startX: -88, startY: -160, endX: -88, endY: 96, thickness: 16 },   // West wall (outer edge at -96 grid line)
-                                { startX: 88, startY: -160, endX: 88, endY: 96, thickness: 16 },     // East wall (outer edge at 96 grid line)
-                                { startX: -88, startY: 88, endX: 88, endY: 88, thickness: 16 }       // South wall (outer edge at 96 grid line)
-                            ],
-                            doors: [
-                                {
-                                    x: 0,             // Door center X position
-                                    y: 88,            // Door Y position (on south wall - updated to match wall position)
-                                    width: 64,        // Door width
-                                    height: 12,       // Door thickness
-                                    color: '#8B4513'  // Brown door color
-                                }
-                            ]
-                        }
+                        // Easy building creation: just specify grid bounds and doors!
+                        createBuilding('cabin',
+                            { left: -1.5, right: 1.5, top: -2.5, bottom: 1.5 }, // Grid bounds (3x4 building)
+                            [{ wall: 'west', x: 0, width: 64 }] // Door on south wall at center
+                        ),
                     ],
                     // Trees around the cabin
                     trees: [
