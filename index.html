@@ -341,40 +341,6 @@
             border-color: #fff;
         }
 
-        /* Custom crosshair cursor */
-        canvas {
-            cursor: crosshair;
-        }
-
-        /* Alternative: Custom SVG crosshair cursor */
-        .custom-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="none" stroke="%23ffffff" stroke-width="2"><path d="M16 4v8M16 20v8M4 16h8M20 16h8"/><circle cx="16" cy="16" r="3" fill="none" stroke="%23ff0000" stroke-width="1"/></svg>') 16 16, crosshair;
-        }
-
-        /* Weapon-specific crosshairs */
-        .pistol-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M10 2v6M10 12v6M2 10h6M12 10h6"/><path stroke="%23ffff00" stroke-width="1" d="M10 2v6M10 12v6M2 10h6M12 10h6"/><circle cx="10" cy="10" r="1.5" fill="none" stroke="%23ff0000" stroke-width="1"/></g></svg>') 10 10, crosshair;
-        }
-
-        .shotgun-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><g fill="none"><path stroke="%23000000" stroke-width="3" d="M14 4v8M14 16v8M4 14h8M16 14h8"/><path stroke="%23ff8800" stroke-width="1" d="M14 4v8M14 16v8M4 14h8M16 14h8"/><circle cx="14" cy="14" r="6" fill="none" stroke="%23ff4400" stroke-width="1" stroke-dasharray="2,2"/><circle cx="14" cy="14" r="2" fill="none" stroke="%23ff0000" stroke-width="1"/></g></svg>') 14 14, crosshair;
-        }
-
-        .assaultRifle-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M12 3v7M12 14v7M3 12h7M14 12h7"/><path stroke="%23ff4400" stroke-width="1" d="M12 3v7M12 14v7M3 12h7M14 12h7"/><circle cx="12" cy="12" r="4" fill="none" stroke="%23ff8844" stroke-width="1" stroke-dasharray="1,1"/><circle cx="12" cy="12" r="1" fill="none" stroke="%23ff0000" stroke-width="1"/></g></svg>') 12 12, crosshair;
-        }
-
-        .fragGrenade-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M15 4v9M15 17v9M4 15h9M17 15h9"/><path stroke="%23ff6600" stroke-width="1" d="M15 4v9M15 17v9M4 15h9M17 15h9"/><circle cx="15" cy="15" r="7" fill="none" stroke="%23ff3300" stroke-width="1" stroke-dasharray="3,1"/><circle cx="15" cy="15" r="3" fill="none" stroke="%23ffff00" stroke-width="1"/></g></svg>') 15 15, crosshair;
-        }
-
-        .nuke-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><g fill="none"><path stroke="%23000000" stroke-width="4" d="M18 2v14M18 20v14M2 18h14M20 18h14"/><path stroke="%23ff0000" stroke-width="3" d="M18 2v14M18 20v14M2 18h14M20 18h14"/><circle cx="18" cy="18" r="12" fill="none" stroke="%23ff0000" stroke-width="3"/><circle cx="18" cy="18" r="8" fill="none" stroke="%23ffff00" stroke-width="2"/><circle cx="18" cy="18" r="4" fill="none" stroke="%23ffffff" stroke-width="1"/></g></svg>') 18 18, crosshair;
-        }
-
-        .missile-crosshair {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><g fill="none"><path stroke="%23000000" stroke-width="2" d="M13 3v8M13 15v8M3 13h8M15 13h8"/><path stroke="%2300ccff" stroke-width="1" d="M13 3v8M13 15v8M3 13h8M15 13h8"/><circle cx="13" cy="13" r="5" fill="none" stroke="%23ff0000" stroke-width="1" stroke-dasharray="1,1"/><path stroke="%2300ffff" stroke-width="1" d="M13 8l2 2M13 8l-2 2M13 18l2-2M13 18l-2-2M8 13l2 2M8 13l2-2M18 13l-2 2M18 13l-2-2"/></g></svg>') 13 13, crosshair;
-        }
     </style>
 </head>
 <body>
@@ -675,7 +641,7 @@
         ];
 
         let playerDirection = { x: 0, y: -1 };
-        let currentWeapon = 'pistol';
+        let currentWeapon = 'axe';
 
         // Gamepad detection and management
         function detectGamepad() {
@@ -923,6 +889,7 @@
                     playerHit: this.createHitSound(),
                     chestPickup: this.createPickupSound(),
                     buttonClick: this.createClickSound(),
+                    axeChop: this.createAxeChopSound(),
                     doorOpen: this.createDoorSound()
                 };
             }
@@ -1517,6 +1484,88 @@
                 };
             }
 
+            createAxeChopSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+
+                    const now = this.audioContext.currentTime;
+                    const baseVolume = this.sfxVolume * this.masterVolume * 0.8;
+
+                    // Layer 1: Initial impact - sharp crack
+                    const impactOsc = this.audioContext.createOscillator();
+                    const impactGain = this.audioContext.createGain();
+                    const impactFilter = this.audioContext.createBiquadFilter();
+
+                    impactOsc.type = 'square';
+                    impactOsc.frequency.setValueAtTime(800, now);
+                    impactOsc.frequency.exponentialRampToValueAtTime(200, now + 0.02);
+
+                    impactFilter.type = 'highpass';
+                    impactFilter.frequency.setValueAtTime(400, now);
+
+                    impactOsc.connect(impactFilter);
+                    impactFilter.connect(impactGain);
+                    impactGain.connect(this.audioContext.destination);
+
+                    impactGain.gain.setValueAtTime(baseVolume * 0.6, now);
+                    impactGain.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
+
+                    impactOsc.start(now);
+                    impactOsc.stop(now + 0.02);
+
+                    // Layer 2: Wood splitting/cracking sound
+                    const crackBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.15, this.audioContext.sampleRate);
+                    const crackData = crackBuffer.getChannelData(0);
+
+                    for (let i = 0; i < crackData.length; i++) {
+                        const decay = Math.pow(1 - i / crackData.length, 2);
+                        // Create cracking/splitting texture
+                        const crack = Math.random() > 0.8 ? (Math.random() * 2 - 1) * 1.5 : (Math.random() * 2 - 1) * 0.2;
+                        crackData[i] = crack * decay;
+                    }
+
+                    const crackSource = this.audioContext.createBufferSource();
+                    const crackGain = this.audioContext.createGain();
+                    const crackFilter = this.audioContext.createBiquadFilter();
+
+                    crackSource.buffer = crackBuffer;
+                    crackFilter.type = 'bandpass';
+                    crackFilter.frequency.setValueAtTime(600, now + 0.01);
+                    crackFilter.Q.setValueAtTime(2, now + 0.01);
+
+                    crackSource.connect(crackFilter);
+                    crackFilter.connect(crackGain);
+                    crackGain.connect(this.audioContext.destination);
+
+                    crackGain.gain.setValueAtTime(baseVolume * 0.7, now + 0.01);
+                    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                    crackSource.start(now + 0.01);
+
+                    // Layer 3: Dull thud as axe bites into wood
+                    const thudOsc = this.audioContext.createOscillator();
+                    const thudGain = this.audioContext.createGain();
+                    const thudFilter = this.audioContext.createBiquadFilter();
+
+                    thudOsc.type = 'sine';
+                    thudOsc.frequency.setValueAtTime(120, now + 0.005);
+                    thudOsc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+
+                    thudFilter.type = 'lowpass';
+                    thudFilter.frequency.setValueAtTime(250, now + 0.005);
+
+                    thudOsc.connect(thudFilter);
+                    thudFilter.connect(thudGain);
+                    thudGain.connect(this.audioContext.destination);
+
+                    thudGain.gain.setValueAtTime(baseVolume * 0.5, now + 0.005);
+                    thudGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+                    thudOsc.start(now + 0.005);
+                    thudOsc.stop(now + 0.1);
+                };
+            }
+
             playSound(soundName) {
                 if (this.sounds[soundName]) {
                     this.sounds[soundName]();
@@ -2017,20 +2066,6 @@
             ];
         }
 
-        function resizeCanvas() {
-            const container = document.getElementById('game-container');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            ctx.fillStyle = '#fff';
-            ctx.font = 'clamp(0.7rem, 2vw, 1.2rem) "Press Start 2P"';
-            ctx.textAlign = 'start';
-            ctx.textBaseline = 'top';
-            createWalls();
-            generateDemoStructures();
-            player.x = 0; // Keep at grid-aligned building center
-            player.y = 0;
-            initializeCamera(); // Reinitialize camera on resize
-        }
         window.addEventListener('resize', resizeCanvas);
 
         // Gamepad event listeners
@@ -2292,17 +2327,165 @@
                 });
 
                 return { walls, bounds: base };
+            },
+
+            // Create a procedural tree with seeded randomness
+            createTree: function(gridX, gridY, seed = null, type = 'oak', size = 'medium') {
+                // Use position-based seed if none provided
+                if (seed === null) {
+                    seed = Math.abs((gridX * 73 + gridY * 37) % 1000);
+                }
+
+                // Seeded random number generator
+                function seededRandom(s) {
+                    s = Math.sin(s) * 10000;
+                    return s - Math.floor(s);
+                }
+
+                const worldPos = GridSystem.gridToWorld(gridX, gridY);
+                const centerX = worldPos.x;
+                const centerY = worldPos.y;
+
+                // Tree parameters based on type and size
+                const treeConfig = {
+                    oak: {
+                        small: { trunkWidth: 8, trunkHeight: 24, canopySize: 32 },
+                        medium: { trunkWidth: 12, trunkHeight: 36, canopySize: 48 },
+                        large: { trunkWidth: 16, trunkHeight: 48, canopySize: 64 }
+                    }
+                };
+
+                const config = treeConfig[type][size];
+
+                // Add some seeded variation (±20%)
+                const trunkHeight = config.trunkHeight * (0.8 + seededRandom(seed + 1) * 0.4);
+                const canopySize = config.canopySize * (0.8 + seededRandom(seed + 2) * 0.4);
+                const trunkWidth = config.trunkWidth * (0.8 + seededRandom(seed + 3) * 0.4);
+
+                // Create tree collision data (separate from walls)
+                const collision = {
+                    x: centerX - trunkWidth/2,
+                    y: centerY - trunkHeight/2,
+                    width: trunkWidth,
+                    height: trunkHeight,
+                    centerX: centerX,
+                    centerY: centerY,
+                    radius: trunkWidth/2, // For circular collision if needed
+                    health: 100, // Trees can be damaged
+                    maxHealth: 100,
+                    type: 'tree'
+                };
+
+                // Store visual data for rendering (non-collision)
+                const visualData = {
+                    centerX: centerX,
+                    centerY: centerY,
+                    trunkWidth: trunkWidth,
+                    trunkHeight: trunkHeight,
+                    canopySize: canopySize,
+                    canopyY: centerY, // Canopy centered on grid position (top-down view)
+                    foliageColor: '#228B22', // Forest green
+                    seed: seed
+                };
+
+                return {
+                    collision: collision,
+                    visual: visualData,
+                    bounds: {
+                        x: centerX - canopySize/2,
+                        y: centerY - trunkHeight/2,
+                        width: canopySize,
+                        height: trunkHeight + canopySize/2,
+                        centerX: centerX,
+                        centerY: centerY
+                    }
+                };
+            },
+
+            // Create a procedural rock with seeded randomness
+            createRock: function(gridX, gridY, seed = null, type = 'granite', size = 'medium') {
+                // Use position-based seed if none provided
+                if (seed === null) {
+                    seed = Math.abs((gridX * 47 + gridY * 53) % 1000);
+                }
+
+                // Seeded random number generator
+                function seededRandom(s) {
+                    s = Math.sin(s) * 10000;
+                    return s - Math.floor(s);
+                }
+
+                const worldPos = GridSystem.gridToWorld(gridX, gridY);
+                const centerX = worldPos.x;
+                const centerY = worldPos.y;
+
+                // Rock parameters based on type and size
+                const rockConfig = {
+                    granite: {
+                        small: { width: 20, height: 16 },
+                        medium: { width: 32, height: 24 },
+                        large: { width: 48, height: 36 }
+                    },
+                    boulder: {
+                        small: { width: 28, height: 24 },
+                        medium: { width: 44, height: 36 },
+                        large: { width: 56, height: 48 }
+                    }
+                };
+
+                const config = rockConfig[type][size];
+
+                // Add some seeded variation (±25%)
+                const rockWidth = config.width * (0.75 + seededRandom(seed + 1) * 0.5);
+                const rockHeight = config.height * (0.75 + seededRandom(seed + 2) * 0.5);
+
+                // Create rock collision data
+                const collision = {
+                    x: centerX - rockWidth/2,
+                    y: centerY - rockHeight/2,
+                    width: rockWidth,
+                    height: rockHeight,
+                    centerX: centerX,
+                    centerY: centerY,
+                    radius: Math.max(rockWidth, rockHeight)/2,
+                    health: 150, // Rocks are tougher than trees
+                    maxHealth: 150,
+                    type: 'rock'
+                };
+
+                // Store visual data for rendering
+                const visualData = {
+                    centerX: centerX,
+                    centerY: centerY,
+                    width: rockWidth,
+                    height: rockHeight,
+                    type: type,
+                    baseColor: type === 'granite' ? '#696969' : '#708090', // Dark gray or slate gray
+                    highlightColor: type === 'granite' ? '#A9A9A9' : '#B0C4DE', // Light gray highlights
+                    seed: seed
+                };
+
+                return {
+                    collision: collision,
+                    visual: visualData,
+                    bounds: {
+                        x: centerX - rockWidth/2,
+                        y: centerY - rockHeight/2,
+                        width: rockWidth,
+                        height: rockHeight,
+                        centerX: centerX,
+                        centerY: centerY
+                    }
+                };
             }
         };
 
         // Demo structures - using the new grid system
         function generateDemoStructures() {
-            // Temporarily disabled demo structures for testing
-            /*
             const additionalWalls = [];
 
             // Create a secondary building to the north (coordinates will be snapped to grid centers)
-            const northBuilding = StructureGenerator.createBuilding(0, -256, 4, 3, {
+            const northBuilding = StructureGenerator.createBuilding(0, -256, 2, 2, {
                 doorSides: ['bottom'],
                 wallColor: '#8B7D6B', // Tan color
                 doorColor: '#6B5B47'
@@ -2327,32 +2510,28 @@
 
             // Add all new walls to the global walls array
             walls.push(...additionalWalls);
-            */
 
-            // Debug logging temporarily disabled with demo structures
-            /*
-            console.log('Generated demo structures:', {
-                northBuilding: northBuilding.bounds,
-                eastTower: eastTower.bounds,
-                totalWalls: walls.length,
-                totalDoors: doors.length
-            });
+            // Create some demo trees using grid coordinates
+            const demoTrees = [
+                StructureGenerator.createTree(-2, -4, null, 'oak', 'large'),  // Grid position (-2, -4)
+                StructureGenerator.createTree(4, -2, null, 'oak', 'medium'),  // Grid position (4, -2)
+                StructureGenerator.createTree(-3, 3, null, 'oak', 'small'),   // Grid position (-3, 3)
+                StructureGenerator.createTree(2, 4, null, 'oak', 'medium'),   // Grid position (2, 4)
+            ];
 
-            // Debug: Check if coordinates are properly aligned
-            console.log('Grid alignment check:');
-            console.log('North building center should snap from (0, -288) to:', GridSystem.snapToGrid(0, -288));
-            console.log('East tower center should snap from (288, 0) to:', GridSystem.snapToGrid(288, 0));
-            console.log('GRID_SIZE:', GRID_SIZE);
-            console.log('Grid centers near origin:', [
-                GridSystem.snapToGrid(-96, 0),
-                GridSystem.snapToGrid(-32, 0),
-                GridSystem.snapToGrid(32, 0),
-                GridSystem.snapToGrid(96, 0),
-                GridSystem.snapToGrid(160, 0),
-                GridSystem.snapToGrid(224, 0),
-                GridSystem.snapToGrid(288, 0)
-            ]);
-            */
+            // Create demo rocks
+            const demoRocks = [
+                StructureGenerator.createRock(-1, -2, null, 'granite', 'medium'),  // Grid position (-1, -2)
+                StructureGenerator.createRock(3, 1, null, 'boulder', 'large'),     // Grid position (3, 1)
+                StructureGenerator.createRock(-4, 1, null, 'granite', 'small'),    // Grid position (-4, 1)
+                StructureGenerator.createRock(1, -3, null, 'boulder', 'medium'),   // Grid position (1, -3)
+            ];
+
+            // Store trees and rocks globally for collision and rendering
+            if (!window.gameObjects) window.gameObjects = {};
+            window.gameObjects.trees = demoTrees;
+            window.gameObjects.rocks = demoRocks;
+
         }
 
         // Camera system - Among Us style follow camera
@@ -2539,6 +2718,61 @@
                 ctx.fillStyle = wall.color;
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
             });
+
+            // Draw trees with visual foliage (rendered after walls)
+            if (window.gameObjects && window.gameObjects.trees) {
+                window.gameObjects.trees.forEach(tree => {
+                    const visual = tree.visual;
+
+                    // Draw trunk as circle (top-down view)
+                    ctx.fillStyle = '#8B4513'; // Brown trunk
+                    ctx.beginPath();
+                    ctx.arc(visual.centerX, visual.centerY, visual.trunkWidth/2, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Note: Canopy will be drawn after player for proper layering
+
+                });
+            }
+
+            // Draw rocks
+            if (window.gameObjects && window.gameObjects.rocks) {
+                window.gameObjects.rocks.forEach(rock => {
+                    const visual = rock.visual;
+
+                    // Draw rock as irregular oval shape
+                    ctx.save();
+
+                    // Main rock body
+                    ctx.fillStyle = visual.baseColor;
+                    ctx.beginPath();
+                    ctx.ellipse(visual.centerX, visual.centerY, visual.width/2, visual.height/2, 0, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Add some texture/highlights
+                    ctx.fillStyle = visual.highlightColor;
+                    ctx.globalAlpha = 0.3;
+
+                    // Small highlight spots for texture
+                    const seed = visual.seed;
+                    function seededRandom(s) {
+                        s = Math.sin(s) * 10000;
+                        return s - Math.floor(s);
+                    }
+
+                    for (let i = 0; i < 3; i++) {
+                        const spotX = visual.centerX + (seededRandom(seed + i * 3) - 0.5) * visual.width * 0.6;
+                        const spotY = visual.centerY + (seededRandom(seed + i * 3 + 1) - 0.5) * visual.height * 0.6;
+                        const spotSize = seededRandom(seed + i * 3 + 2) * 4 + 2;
+
+                        ctx.beginPath();
+                        ctx.arc(spotX, spotY, spotSize, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                });
+            }
         }
         
         function drawPlayerFrame(drawCtx, x, y, frame, variant, direction = 'down') {
@@ -2882,7 +3116,141 @@
             }
             return false;
         }
-        
+
+        function checkTreeCollision(x, y, radius) {
+            if (!window.gameObjects || !window.gameObjects.trees) {
+                return false;
+            }
+
+            for (const tree of window.gameObjects.trees) {
+                const collision = tree.collision;
+
+                // Check collision with tree trunk (rectangular collision box)
+                const testX = Math.max(collision.x, Math.min(x, collision.x + collision.width));
+                const testY = Math.max(collision.y, Math.min(y, collision.y + collision.height));
+                const distX = x - testX;
+                const distY = y - testY;
+                const distance = Math.sqrt((distX * distX) + (distY * distY));
+
+                if (distance <= radius) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function checkRockCollision(x, y, radius) {
+            if (!window.gameObjects || !window.gameObjects.rocks) {
+                return false;
+            }
+
+            for (const rock of window.gameObjects.rocks) {
+                const collision = rock.collision;
+
+                // Check collision with rock (rectangular collision box)
+                const testX = Math.max(collision.x, Math.min(x, collision.x + collision.width));
+                const testY = Math.max(collision.y, Math.min(y, collision.y + collision.height));
+                const distX = x - testX;
+                const distY = y - testY;
+                const distance = Math.sqrt((distX * distX) + (distY * distY));
+
+                if (distance <= radius) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function createWoodPlanks(x, y, count) {
+            // Create wood plank collectibles when tree is destroyed
+            if (!window.gameObjects.woodPlanks) {
+                window.gameObjects.woodPlanks = [];
+            }
+
+            for (let i = 0; i < count; i++) {
+                // Scatter planks around the tree location
+                const offsetX = (Math.random() - 0.5) * 60;
+                const offsetY = (Math.random() - 0.5) * 60;
+
+                window.gameObjects.woodPlanks.push({
+                    x: x + offsetX,
+                    y: y + offsetY,
+                    width: 20,
+                    height: 8,
+                    color: '#D2691E', // Saddle brown
+                    collected: false,
+                    value: 1 // How many wood units this plank gives
+                });
+            }
+        }
+
+        function drawWoodPlanks() {
+            if (!window.gameObjects || !window.gameObjects.woodPlanks) return;
+
+            window.gameObjects.woodPlanks.forEach(plank => {
+                if (!plank.collected) {
+                    // Draw wood plank
+                    ctx.fillStyle = plank.color;
+                    ctx.fillRect(plank.x - plank.width/2, plank.y - plank.height/2, plank.width, plank.height);
+
+                    // Add wood grain lines
+                    ctx.strokeStyle = '#8B4513'; // Darker brown
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(plank.x - plank.width/2 + 3, plank.y - plank.height/2 + 2);
+                    ctx.lineTo(plank.x + plank.width/2 - 3, plank.y - plank.height/2 + 2);
+                    ctx.moveTo(plank.x - plank.width/2 + 3, plank.y + plank.height/2 - 2);
+                    ctx.lineTo(plank.x + plank.width/2 - 3, plank.y + plank.height/2 - 2);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function createStone(x, y, count) {
+            // Create stone piece collectibles when rock is destroyed
+            if (!window.gameObjects.stone) {
+                window.gameObjects.stone = [];
+            }
+
+            for (let i = 0; i < count; i++) {
+                // Scatter stone pieces around the rock location
+                const offsetX = (Math.random() - 0.5) * 60;
+                const offsetY = (Math.random() - 0.5) * 60;
+
+                window.gameObjects.stone.push({
+                    x: x + offsetX,
+                    y: y + offsetY,
+                    width: 12,
+                    height: 10,
+                    color: '#808080', // Gray
+                    collected: false,
+                    value: 1 // How many stone units this piece gives
+                });
+            }
+        }
+
+        function drawStone() {
+            if (!window.gameObjects || !window.gameObjects.stone) return;
+
+            window.gameObjects.stone.forEach(stone => {
+                if (!stone.collected) {
+                    // Draw stone piece as irregular shape
+                    ctx.fillStyle = stone.color;
+                    ctx.beginPath();
+                    ctx.ellipse(stone.x, stone.y, stone.width/2, stone.height/2, 0, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Add highlight for texture
+                    ctx.fillStyle = '#A9A9A9'; // Light gray highlight
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.ellipse(stone.x - stone.width/4, stone.y - stone.height/4, stone.width/4, stone.height/4, 0, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+        }
+
         function isInsideBase(x, y) {
             const w = canvas.width;
             const h = canvas.height;
@@ -2954,11 +3322,11 @@
             const newX = player.x + dx;
             const newY = player.y + dy;
 
-            // Check for wall collisions
-            if (!checkWallCollision(newX, player.y, player.radius)) {
+            // Check for wall, tree, and rock collisions
+            if (!checkWallCollision(newX, player.y, player.radius) && !checkTreeCollision(newX, player.y, player.radius) && !checkRockCollision(newX, player.y, player.radius)) {
                 player.x = newX;
             }
-            if (!checkWallCollision(player.x, newY, player.radius)) {
+            if (!checkWallCollision(player.x, newY, player.radius) && !checkTreeCollision(player.x, newY, player.radius) && !checkRockCollision(player.x, newY, player.radius)) {
                 player.y = newY;
             }
 
@@ -3285,22 +3653,22 @@
 
             // D-Pad weapon selection
             if (getButtonPressed(12)) { // D-Pad Up
-                currentWeapon = 'pistol';
+                currentWeapon = 'axe';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (getButtonPressed(13)) { // D-Pad Down
-                currentWeapon = 'shotgun';
+                currentWeapon = 'pistol';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (getButtonPressed(14)) { // D-Pad Left
-                currentWeapon = 'assaultRifle';
+                currentWeapon = 'shotgun';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (getButtonPressed(15)) { // D-Pad Right
-                currentWeapon = 'fragGrenade';
+                currentWeapon = 'assaultRifle';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
@@ -3972,9 +4340,58 @@
                 console.log('SHOOT: Magnitude is 0, returning');
                 return;
             }
-            
 
-            if (currentWeapon === 'pistol') {
+            if (currentWeapon === 'axe') {
+                // Melee axe swing - check for trees in range
+                const swingRange = 40; // Axe swing range
+                audioManager.playSound('axeChop'); // Realistic wood chopping sound
+                vibrateGamepad(0.2, 0.4, 200); // Medium vibration for axe swing
+
+                // Check for trees within swing range
+                if (window.gameObjects && window.gameObjects.trees) {
+                    window.gameObjects.trees.forEach((tree, index) => {
+                        const distance = Math.hypot(player.x - tree.collision.centerX, player.y - tree.collision.centerY);
+                        if (distance <= swingRange) {
+                            // Damage the tree
+                            tree.collision.health -= 25; // 4 hits to destroy
+                            console.log(`Hit tree! Health: ${tree.collision.health}/${tree.collision.maxHealth}`);
+
+                            if (tree.collision.health <= 0) {
+                                // Tree destroyed - create wood planks
+                                createWoodPlanks(tree.collision.centerX, tree.collision.centerY, 3);
+                                // Remove tree from array
+                                window.gameObjects.trees.splice(index, 1);
+                                console.log('Tree destroyed! Wood planks created.');
+                            }
+                        }
+                    });
+                }
+            } else if (currentWeapon === 'pickaxe') {
+                // Melee pickaxe swing - check for rocks in range
+                const swingRange = 40; // Pickaxe swing range
+                audioManager.playSound('axeChop'); // Reuse axe sound for now - could create rock mining sound later
+                vibrateGamepad(0.3, 0.5, 250); // Slightly stronger vibration for pickaxe
+
+                // Check for rocks within swing range
+                if (window.gameObjects && window.gameObjects.rocks) {
+                    window.gameObjects.rocks.forEach((rock, index) => {
+                        const distance = Math.hypot(player.x - rock.collision.centerX, player.y - rock.collision.centerY);
+                        if (distance <= swingRange) {
+                            // Damage the rock
+                            rock.collision.health -= 30; // 5 hits to destroy (rocks are tougher)
+                            console.log(`Hit rock! Health: ${rock.collision.health}/${rock.collision.maxHealth}`);
+
+                            if (rock.collision.health <= 0) {
+                                // Rock destroyed - create stone pieces
+                                createStone(rock.collision.centerX, rock.collision.centerY, 4);
+                                // Remove rock from array
+                                window.gameObjects.rocks.splice(index, 1);
+                                console.log('Rock destroyed! Stone pieces created.');
+                            }
+                        }
+                    });
+                }
+            } else if (currentWeapon === 'pistol') {
                 if (ammo.pistol <= 0) return;
                 ammo.pistol--;
                 audioManager.playSound('pistol');
@@ -4498,6 +4915,70 @@
                 }
             });
 
+            // Player vs wood planks
+            if (window.gameObjects && window.gameObjects.woodPlanks) {
+                window.gameObjects.woodPlanks.forEach((plank, pIndex) => {
+                    if (!plank.collected) {
+                        const distance = Math.hypot(player.x - plank.x, player.y - plank.y);
+                        if (distance < player.radius + Math.max(plank.width, plank.height) / 2) {
+                            // Collect wood plank
+                            plank.collected = true;
+
+                            // Add to wood inventory (we'll need to create this system)
+                            if (!window.inventory) window.inventory = {};
+                            if (!window.inventory.wood) window.inventory.wood = 0;
+                            window.inventory.wood += plank.value;
+
+                            // Show collection feedback
+                            createDamageNumber(plank.x, plank.y - 20, '+WOOD', false, 'loot');
+                            audioManager.playSound('chestPickup');
+
+                            // Remove from array after a delay to allow animation
+                            setTimeout(() => {
+                                const index = window.gameObjects.woodPlanks.indexOf(plank);
+                                if (index > -1) {
+                                    window.gameObjects.woodPlanks.splice(index, 1);
+                                }
+                            }, 100);
+
+                            console.log(`Collected wood! Total: ${window.inventory.wood}`);
+                        }
+                    }
+                });
+            }
+
+            // Player vs stone pieces
+            if (window.gameObjects && window.gameObjects.stone) {
+                window.gameObjects.stone.forEach((stone, sIndex) => {
+                    if (!stone.collected) {
+                        const distance = Math.hypot(player.x - stone.x, player.y - stone.y);
+                        if (distance < player.radius + Math.max(stone.width, stone.height) / 2) {
+                            // Collect stone piece
+                            stone.collected = true;
+
+                            // Add to stone inventory
+                            if (!window.inventory) window.inventory = {};
+                            if (!window.inventory.stone) window.inventory.stone = 0;
+                            window.inventory.stone += stone.value;
+
+                            // Show collection feedback
+                            createDamageNumber(stone.x, stone.y - 20, '+STONE', false, 'loot');
+                            audioManager.playSound('chestPickup');
+
+                            // Remove from array after a delay to allow animation
+                            setTimeout(() => {
+                                const index = window.gameObjects.stone.indexOf(stone);
+                                if (index > -1) {
+                                    window.gameObjects.stone.splice(index, 1);
+                                }
+                            }, 100);
+
+                            console.log(`Collected stone! Total: ${window.inventory.stone}`);
+                        }
+                    }
+                });
+            }
+
             // Fragment vs enemies collision
             fragments.forEach((fragment, fIndex) => {
                 // Check against zombies
@@ -4597,46 +5078,30 @@
             gameLoop();
         }
         
-        function updateCrosshair() {
-            // Remove all crosshair classes
-            canvas.classList.remove('pistol-crosshair', 'shotgun-crosshair', 'fragGrenade-crosshair', 'nuke-crosshair', 'missile-crosshair');
-
-            // Add the appropriate crosshair class
-            if (currentWeapon === 'pistol') {
-                canvas.classList.add('pistol-crosshair');
-            } else if (currentWeapon === 'shotgun') {
-                canvas.classList.add('shotgun-crosshair');
-            } else if (currentWeapon === 'assaultRifle') {
-                canvas.classList.add('assaultRifle-crosshair');
-            } else if (currentWeapon === 'fragGrenade') {
-                canvas.classList.add('fragGrenade-crosshair');
-            } else if (currentWeapon === 'nuke') {
-                canvas.classList.add('nuke-crosshair');
-            } else if (currentWeapon === 'missile') {
-                canvas.classList.add('missile-crosshair');
-            }
-        }
 
         function updateWeaponDisplay() {
-            if (currentWeapon === 'pistol') {
-                weaponDisplay.textContent = 'Weapon: Pistol (1)';
+            if (currentWeapon === 'axe') {
+                weaponDisplay.textContent = 'Weapon: Axe (1)';
+            } else if (currentWeapon === 'pistol') {
+                weaponDisplay.textContent = 'Weapon: Pistol (2)';
             } else if (currentWeapon === 'shotgun') {
-                weaponDisplay.textContent = 'Weapon: Shotgun (2)';
+                weaponDisplay.textContent = 'Weapon: Shotgun (3)';
             } else if (currentWeapon === 'assaultRifle') {
-                weaponDisplay.textContent = 'Weapon: Assault Rifle (3)';
+                weaponDisplay.textContent = 'Weapon: Assault Rifle (4)';
             } else if (currentWeapon === 'fragGrenade') {
-                weaponDisplay.textContent = 'Weapon: Frag Grenade (4)';
+                weaponDisplay.textContent = 'Weapon: Frag Grenade (5)';
             } else if (currentWeapon === 'nuke') {
-                weaponDisplay.textContent = 'Weapon: Nuke (5)';
+                weaponDisplay.textContent = 'Weapon: Nuke (6)';
             } else if (currentWeapon === 'missile') {
-                weaponDisplay.textContent = 'Weapon: Missile (6)';
+                weaponDisplay.textContent = 'Weapon: Missile (7)';
             }
-            updateCrosshair();
         }
         
         function updateAmmoDisplay() {
             const currentAmmo = ammo[currentWeapon];
-            if (currentWeapon === 'pistol') {
+            if (currentWeapon === 'axe') {
+                ammoDisplay.textContent = `Ammo: MELEE`;
+            } else if (currentWeapon === 'pistol') {
                 ammoDisplay.textContent = `Ammo: ∞`;
             } else {
                 ammoDisplay.textContent = `Ammo: ${currentAmmo}`;
@@ -4935,9 +5400,61 @@
             } else {
                 drawPlayerFrame(ctx, player.x, player.y, player.frame, player.variant, player.direction);
             }
+
+            // Draw subtle directional indicator
+            let aimDx, aimDy;
+            // Use same logic as shooting to determine aim direction
+            if (gamepad && (gamepadAimX !== 0 || gamepadAimY !== 0)) {
+                aimDx = gamepadAimX * GAMEPAD_AIM_SENSITIVITY;
+                aimDy = gamepadAimY * GAMEPAD_AIM_SENSITIVITY;
+            } else if (!gamepad && mouseMoved) {
+                aimDx = mouseX - player.x;
+                aimDy = mouseY - player.y;
+            } else {
+                aimDx = playerDirection.x;
+                aimDy = playerDirection.y;
+            }
+
+            const aimMagnitude = Math.hypot(aimDx, aimDy);
+            if (aimMagnitude > 0) {
+                const normalizedDx = aimDx / aimMagnitude;
+                const normalizedDy = aimDy / aimMagnitude;
+
+                // Draw small directional dot
+                const indicatorDistance = 64; // Distance from player center
+                const indicatorX = player.x + normalizedDx * indicatorDistance;
+                const indicatorY = player.y + normalizedDy * indicatorDistance;
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(indicatorX, indicatorY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw tree canopies AFTER player so player appears under foliage
+            if (window.gameObjects && window.gameObjects.trees) {
+                window.gameObjects.trees.forEach(tree => {
+                    const visual = tree.visual;
+                    ctx.save();
+                    ctx.globalAlpha = 0.7; // 70% opacity
+                    ctx.fillStyle = visual.foliageColor;
+                    ctx.beginPath();
+                    ctx.arc(visual.centerX, visual.canopyY, visual.canopySize/2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                });
+            }
+
             drawZombies();
             drawSkeletons();
             drawBullets();
+            drawWoodPlanks();
+            drawStone();
             drawMissiles();
             drawFragments();
             drawBloodSplatters();
@@ -4972,7 +5489,6 @@
             // Start the game loop immediately for menu input
             gameLoop();
             updateWeaponDisplay();
-            updateCrosshair();
             updateHealthDisplay();
             // Draw character variants on start screen
             drawPlayerFrame(ctx1, char1Canvas.width / 2, char1Canvas.height / 2, 1, 0, 'down');
@@ -5003,31 +5519,36 @@
                 }
             }
             if (key === '1') {
-                currentWeapon = 'pistol';
+                currentWeapon = 'axe';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '2') {
-                currentWeapon = 'shotgun';
+                currentWeapon = 'pistol';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '3') {
-                currentWeapon = 'assaultRifle';
+                currentWeapon = 'shotgun';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '4') {
-                currentWeapon = 'fragGrenade';
+                currentWeapon = 'assaultRifle';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '5') {
-                currentWeapon = 'nuke';
+                currentWeapon = 'fragGrenade';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
             }
             if (key === '6') {
+                currentWeapon = 'nuke';
+                updateWeaponDisplay();
+                updateAmmoDisplay();
+            }
+            if (key === '7') {
                 currentWeapon = 'missile';
                 updateWeaponDisplay();
                 updateAmmoDisplay();
@@ -5105,7 +5626,7 @@
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTime = 0;
-        const weapons = ['pistol', 'shotgun', 'assaultRifle', 'fragGrenade', 'nuke', 'missile'];
+        const weapons = ['axe', 'pickaxe', 'pistol', 'shotgun', 'assaultRifle', 'fragGrenade', 'nuke', 'missile'];
 
         // Touch events for mobile
         canvas.addEventListener('touchstart', (e) => {
