@@ -658,9 +658,10 @@
             // Small hut:  createBuilding('hut', { left: -0.5, right: 0.5, top: -0.5, bottom: 0.5 }, [{ wall: 'south' }])
             // Large house: createBuilding('house', { left: -2, right: 2, top: -3, bottom: 2 }, [{ wall: 'south' }, { wall: 'north' }])
             // L-shaped building: Use multiple createBuilding calls and position them adjacently
+            // Internal passage: [{ wall: 'north', x: 0, width: 64, alwaysOpen: true }] (no door, always passable)
             //
             // gridBounds: { left: -1, right: 1, top: -2, bottom: 1 } (in grid units)
-            // doors: [{ wall: 'south', x: 0, width: 64 }] or [{ wall: 'east', y: -1, height: 64 }]
+            // doors: [{ wall: 'south', x: 0, width: 64, alwaysOpen: false }] or [{ wall: 'east', y: -1, height: 64, alwaysOpen: true }]
 
             const wallThickness = options.wallThickness || 16;
             const wallColor = options.wallColor || '#8B7D6B';
@@ -744,7 +745,8 @@
                     y: y,
                     width: width,
                     height: height,
-                    color: door.color || '#8B4513'
+                    color: door.color || '#8B4513',
+                    alwaysOpen: door.alwaysOpen || false
                 };
             });
 
@@ -859,15 +861,15 @@
                         createBuilding('barn-main',
                             { left: 3.5, right: 6.5, top: -2.5, bottom: 2.5 },
                             [
-                                { wall: 'west', y: 0, width: 64 },
-                                { wall: 'east', y: -1, width: 64 }
+                                { wall: 'west', y: 0, width: 64 }, // External door
+                                { wall: 'east', y: -1, width: 128, alwaysOpen: true } // Internal passage (always open)
                             ]
                         ),
                         createBuilding('barn-wing',
                             { left: 6.5, right: 12.5, top: -2.5, bottom: 0.5 },
                             [
-                                { wall: 'east', y: 0, width: 64 },
-                                { wall: 'west', y: 0, width: 64 }
+                                { wall: 'east', y: 0, width: 64 }, // External door
+                                { wall: 'west', y: 0, width: 128, alwaysOpen: true } // Internal passage (always open)
                             ]
                         )
                     ],
@@ -3065,9 +3067,10 @@
                                 type: 'door',
                                 color: doorDef.color || '#8B4513',
                                 building: building.name,
-                                open: false,
-                                openAmount: 0,
-                                targetOpen: 0
+                                alwaysOpen: doorDef.alwaysOpen || false,
+                                open: doorDef.alwaysOpen || false,
+                                openAmount: doorDef.alwaysOpen ? 1 : 0,
+                                targetOpen: doorDef.alwaysOpen ? 1 : 0
                             };
 
                             doors.push(door);
@@ -3316,6 +3319,11 @@
         function drawWalls() {
             // Draw doors FIRST so they appear behind walls
             doors.forEach(door => {
+                // Skip drawing always-open doors (just leave the opening)
+                if (door.alwaysOpen) {
+                    return;
+                }
+
                 ctx.fillStyle = door.color;
 
                 if (door.orientation === 'horizontal') {
@@ -4132,6 +4140,11 @@
             
             // Door logic with gradual animation
             doors.forEach(door => {
+                // Skip animation and interaction for always-open doors
+                if (door.alwaysOpen) {
+                    return; // Door stays permanently open
+                }
+
                 const dist = Math.hypot(player.x - (door.x + door.width/2), player.y - (door.y + door.height/2));
                 const wasTargetOpen = door.targetOpen;
 
