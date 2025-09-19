@@ -3588,11 +3588,11 @@
 
         function drawTerrain() {
             // Draw background
-            ctx.fillStyle = '#2a2a2a';
+            ctx.fillStyle = '#d2b48c';
             ctx.fillRect(-2000, -2000, 4000, 4000);
 
             // Draw grid lines
-            ctx.strokeStyle = '#404040';
+            ctx.strokeStyle = '#d2b48c';
             ctx.lineWidth = 1;
 
             // Draw grid lines - offset so (0,0) is CENTER of a grid square, not intersection
@@ -3618,7 +3618,7 @@
             }
 
             // Add scattered environmental objects
-            drawEnvironmentalObjects();
+            // drawEnvironmentalObjects(); // Temporarily disabled for level design
         }
 
         function drawEnvironmentalObjects() {
