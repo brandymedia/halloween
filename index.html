@@ -855,14 +855,20 @@
                             [{ wall: 'west', y: 0, width: 48 }] // Smaller door
                         ),
 
-                        // L-shaped barn (two connected rectangles)
+                        // L-shaped barn (two connected rectangles) - simplified approach
                         createBuilding('barn-main',
-                            { left: 3, right: 6, top: -1, bottom: 2 }, // 3x3 horizontal part
-                            [{ wall: 'west', y: 0, width: 64 }] // Door on west side for easier access
+                            { left: 3.5, right: 6.5, top: -2.5, bottom: 2.5 },
+                            [
+                                { wall: 'west', y: 0, width: 64 },
+                                { wall: 'east', y: -1, width: 64 }
+                            ]
                         ),
                         createBuilding('barn-wing',
-                            { left: 5, right: 7, top: -3, bottom: -1 }, // 2x2 vertical part
-                            [{ wall: 'east', y: -2, width: 64 }] // Door on east side for access
+                            { left: 6.5, right: 12.5, top: -2.5, bottom: 0.5 },
+                            [
+                                { wall: 'east', y: 0, width: 64 },
+                                { wall: 'west', y: 0, width: 64 }
+                            ]
                         )
                     ],
                     trees: [
