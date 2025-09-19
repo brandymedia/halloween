@@ -787,7 +787,9 @@
                         // Easy building creation: just specify grid bounds and doors!
                         createBuilding('cabin',
                             { left: -1.5, right: 1.5, top: -2.5, bottom: 1.5 }, // Grid bounds (3x4 building)
-                            [{ wall: 'west', x: 0, width: 64 }] // Door on south wall at center
+                            [
+                                { wall: 'south', x: 0, width: 64 }
+                            ] // Door on south wall at center
                         ),
                     ],
                     // Trees around the cabin
