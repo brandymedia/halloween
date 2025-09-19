@@ -509,6 +509,12 @@
         let currentScore = 0;      // Current run score (resets on death)
         let highScore = parseInt(localStorage.getItem('zombieGameHighScore')) || 0;
         let totalXP = 0;           // Permanent XP for future awards/unlocks
+        let levelStartScore = 0;   // Score when level started (for restart calculations)
+        let levelStartXP = 0;      // XP when level started (for restart calculations)
+
+        // Game completion tracking
+        let gameCompleteHighScore = parseInt(localStorage.getItem('zombieGameCompleteHighScore')) || 0;
+        let gameCompleteHighXP = parseInt(localStorage.getItem('zombieGameCompleteHighXP')) || 0;
 
         // Load saved XP from localStorage
         function loadProgress() {
@@ -963,11 +969,15 @@
             `;
 
             const config = levelConfigs[gameLevel.current];
+            const nextLevel = gameLevel.current + 1;
+            const isLastLevel = !levelConfigs[nextLevel];
+            const nextButtonText = isLastLevel ? "Complete Game" : "Next Level";
+
             completionScreen.innerHTML = `
                 <h1 style="color: #4CAF50; font-size: 2rem; margin-bottom: 20px;">LEVEL COMPLETE!</h1>
                 <p style="font-size: 1.2rem; margin-bottom: 10px;">${config.name}</p>
                 <p style="font-size: 1rem; margin-bottom: 30px;">${config.completion.description} ✓</p>
-                <button id="next-level-btn" class="btn" style="margin: 10px;">Next Level</button>
+                <button id="next-level-btn" class="btn" style="margin: 10px;">${nextButtonText}</button>
                 <button id="restart-level-btn" class="btn" style="margin: 10px;">Restart Level</button>
             `;
 
@@ -1002,12 +1012,12 @@
                         resetGame();
                     } else {
                         document.body.removeChild(completionScreen);
-                        alert('Next level not yet implemented!');
+                        showGameCompleteScreen();
                     }
                 } else {
                     // Restart Level
                     document.body.removeChild(completionScreen);
-                    resetGame();
+                    restartLevel();
                 }
             }
 
@@ -1103,14 +1113,236 @@
                     resetGame();
                 } else {
                     document.body.removeChild(completionScreen);
-                    alert('Next level not yet implemented!');
+                    showGameCompleteScreen();
                 }
             });
 
             document.getElementById('restart-level-btn').addEventListener('click', () => {
                 document.body.removeChild(completionScreen);
-                resetGame();
+                restartLevel();
             });
+        }
+
+        // Game complete screen - shows when all levels are finished
+        function showGameCompleteScreen() {
+            console.log('Game Complete Screen triggered!');
+            // Pause the game
+            isGameOver = true;
+
+            // Check and save new records
+            const newScoreRecord = currentScore > gameCompleteHighScore;
+            const newXPRecord = totalXP > gameCompleteHighXP;
+
+            if (newScoreRecord) {
+                gameCompleteHighScore = currentScore;
+                localStorage.setItem('zombieGameCompleteHighScore', gameCompleteHighScore.toString());
+            }
+            if (newXPRecord) {
+                gameCompleteHighXP = totalXP;
+                localStorage.setItem('zombieGameCompleteHighXP', gameCompleteHighXP.toString());
+            }
+
+            // Show completion UI
+            const completionScreen = document.createElement('div');
+            completionScreen.id = 'game-complete-screen';
+            completionScreen.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, rgba(0, 100, 0, 0.9), rgba(0, 50, 0, 0.9));
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                color: white;
+                font-family: 'Press Start 2P', cursive;
+                text-align: center;
+            `;
+
+            completionScreen.innerHTML = `
+                <h1 style="color: #FFD700; font-size: 2.5rem; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">🎉 GAME COMPLETE! 🎉</h1>
+
+                <div style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; margin-bottom: 20px;">
+                    <h2 style="color: #4CAF50; font-size: 1.5rem; margin-bottom: 20px;">Final Stats</h2>
+                    <p style="font-size: 1.2rem; margin: 10px 0;">Final Score: <span style="color: #FFD700;">${currentScore}</span></p>
+                    <p style="font-size: 1.2rem; margin: 10px 0;">Total XP: <span style="color: #4CAF50;">${totalXP}</span></p>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; margin-bottom: 30px;">
+                    <h2 style="color: #FF6B35; font-size: 1.5rem; margin-bottom: 20px;">Best Game Records</h2>
+                    <p style="font-size: 1rem; margin: 10px 0;">Best Score: <span style="color: #FFD700;">${gameCompleteHighScore}</span> ${newScoreRecord ? '🆕' : ''}</p>
+                    <p style="font-size: 1rem; margin: 10px 0;">Best XP: <span style="color: #4CAF50;">${gameCompleteHighXP}</span> ${newXPRecord ? '🆕' : ''}</p>
+                </div>
+
+                <button id="new-game-btn" class="btn" style="margin: 10px; padding: 15px 30px; font-size: 1rem;">Start New Game</button>
+                <button id="main-menu-btn" class="btn" style="margin: 10px; padding: 15px 30px; font-size: 1rem;">Main Menu</button>
+            `;
+
+            document.body.appendChild(completionScreen);
+
+            // Gamepad navigation state
+            let selectedButton = 0; // 0 = new game, 1 = main menu
+            const buttons = ['new-game-btn', 'main-menu-btn'];
+
+            function updateButtonSelection() {
+                buttons.forEach((btnId, index) => {
+                    const btn = document.getElementById(btnId);
+                    if (index === selectedButton) {
+                        btn.style.backgroundColor = '#4CAF50';
+                        btn.style.transform = 'scale(1.1)';
+                        btn.style.boxShadow = '0 0 10px #4CAF50';
+                    } else {
+                        btn.style.backgroundColor = '#333';
+                        btn.style.transform = 'scale(1)';
+                        btn.style.boxShadow = 'none';
+                    }
+                });
+            }
+
+            function executeSelectedButton() {
+                if (selectedButton === 0) {
+                    // Start New Game
+                    document.body.removeChild(completionScreen);
+                    startNewGame();
+                } else {
+                    // Main Menu
+                    document.body.removeChild(completionScreen);
+                    showStartMenu();
+                }
+            }
+
+            // Initialize button selection
+            updateButtonSelection();
+
+            // Gamepad input handler
+            let inputInterval;
+
+            function handleGameCompleteInput() {
+                if (!document.getElementById('game-complete-screen')) {
+                    if (inputInterval) {
+                        clearInterval(inputInterval);
+                        inputInterval = null;
+                    }
+                    return;
+                }
+
+                // Update gamepad reference
+                if (gamepadIndex >= 0) {
+                    gamepad = navigator.getGamepads()[gamepadIndex];
+                }
+
+                // Track stick input for edge detection
+                if (!handleGameCompleteInput.lastStickY) {
+                    handleGameCompleteInput.lastStickY = 0;
+                }
+
+                // Navigate up/down with D-Pad
+                if (getButtonPressed(12)) { // D-Pad Up
+                    selectedButton = Math.max(0, selectedButton - 1);
+                    updateButtonSelection();
+                }
+                if (getButtonPressed(13)) { // D-Pad Down
+                    selectedButton = Math.min(buttons.length - 1, selectedButton + 1);
+                    updateButtonSelection();
+                }
+
+                // Navigate up/down with Left Stick
+                if (gamepad) {
+                    const leftStickY = applyDeadzone(gamepad.axes[1]);
+                    const wasMovingUp = handleGameCompleteInput.lastStickY < -0.5;
+                    const wasMovingDown = handleGameCompleteInput.lastStickY > 0.5;
+                    const isMovingUp = leftStickY < -0.5;
+                    const isMovingDown = leftStickY > 0.5;
+
+                    if (isMovingUp && !wasMovingUp) {
+                        selectedButton = Math.max(0, selectedButton - 1);
+                        updateButtonSelection();
+                    }
+                    if (isMovingDown && !wasMovingDown) {
+                        selectedButton = Math.min(buttons.length - 1, selectedButton + 1);
+                        updateButtonSelection();
+                    }
+
+                    handleGameCompleteInput.lastStickY = leftStickY;
+                }
+
+                // Confirm selection
+                if (getButtonPressed(0)) { // A button
+                    executeSelectedButton();
+                }
+            }
+
+            // Start gamepad input handling
+            inputInterval = setInterval(handleGameCompleteInput, 16);
+
+            // Event listeners for mouse clicks
+            document.getElementById('new-game-btn').addEventListener('click', () => {
+                document.body.removeChild(completionScreen);
+                startNewGame();
+            });
+
+            document.getElementById('main-menu-btn').addEventListener('click', () => {
+                document.body.removeChild(completionScreen);
+                showStartMenu();
+            });
+        }
+
+        // Show the start menu
+        function showStartMenu() {
+            // Stop the current game
+            isGameOver = true;
+            isInMenu = true;
+
+            // Show the start menu
+            startMenu.style.display = 'flex';
+            gameUI.style.display = 'flex';
+
+            // Update menu displays
+            startHighScoreSpan.textContent = `Best Score: ${highScore}`;
+            updateScoreDisplay();
+            updateXPDisplay();
+            updateHighScoreDisplay();
+            updateMenuSelection();
+
+            // Start the game loop for menu input
+            if (!animationId) {
+                gameLoop();
+            }
+        }
+
+        // Start a completely new game (reset all progress)
+        function startNewGame() {
+            // Reset all game state
+            currentScore = 0;
+            totalXP = 0;
+            gameLevel.current = 1;
+            gameLevel.isComplete = false;
+
+            // Save reset progress
+            saveProgress();
+            updateScoreDisplay();
+            updateXPDisplay();
+
+            // Start from level 1
+            resetGame();
+        }
+
+        // Level restart function - removes score/XP earned during current level attempt
+        function restartLevel() {
+            // Roll back score and XP to level start values
+            currentScore = levelStartScore;
+            totalXP = levelStartXP;
+
+            // Save the reverted progress
+            saveProgress();
+            updateScoreDisplay();
+            updateXPDisplay();
+
+            // Reset the level
+            resetGame();
         }
 
         // Game reset function - called from start game and level completion
@@ -1119,6 +1351,11 @@
             isInMenu = false;
             // Note: currentScore is NOT reset here - it continues across levels
             // Only reset on actual death/game over
+
+            // Track starting values for this level (for potential restart)
+            levelStartScore = currentScore;
+            levelStartXP = totalXP;
+
             playerHealth = maxHealth;
             invincibilityFrames = 0;
             // Reset all power-ups
@@ -4356,8 +4593,8 @@
                 return { dx: 0, dy: 0, aiming: false };
             }
 
-            // Don't process gamepad input if level complete screen is showing
-            if (document.getElementById('level-complete-screen')) {
+            // Don't process gamepad input if level complete or game complete screen is showing
+            if (document.getElementById('level-complete-screen') || document.getElementById('game-complete-screen')) {
                 return { dx: 0, dy: 0, aiming: false };
             }
 
