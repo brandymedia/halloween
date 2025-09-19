@@ -1330,6 +1330,152 @@
             resetGame();
         }
 
+        // SVG Player Graphics System
+        function createPlayerSVG(direction = 'down', frame = 0) {
+            // Character color scheme based on 3D render
+            const colors = {
+                skin: '#F4C2A1',
+                hood: '#2A2A2A',
+                vest: '#1A1A1A',
+                belt: '#FF8C00',
+                pants: '#5A6B2E',
+                boots: '#1A1A1A',
+                eyes: '#000000'
+            };
+
+            // Base dimensions (increased to prevent cropping)
+            const width = 30;
+            const height = 50; // Increased from 40 to give head more room
+
+            // Animation offsets for walking
+            const legOffset = frame === 1 ? -2 : frame === 3 ? 2 : 0;
+            const armOffset = frame === 1 ? 2 : frame === 3 ? -2 : 0;
+            const bobOffset = frame === 2 ? -1 : 0;
+
+            return `
+                <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Main body silhouette with organic curves -->
+                    <path d="M 15 ${height - 48 + bobOffset}
+                             C 25 ${height - 48 + bobOffset} 25 ${height - 30 + bobOffset} 22 ${height - 20 + bobOffset}
+                             L ${22 - legOffset} ${height - 5}
+                             C ${22 - legOffset} ${height - 2} ${19 - legOffset} ${height - 1} ${15 - legOffset} ${height - 1}
+                             C ${11 + legOffset} ${height - 1} ${8 + legOffset} ${height - 2} ${8 + legOffset} ${height - 5}
+                             L ${8 + legOffset} ${height - 20 + bobOffset}
+                             C 5 ${height - 30 + bobOffset} 5 ${height - 48 + bobOffset} 15 ${height - 48 + bobOffset}
+                             Z"
+                          fill="${colors.hood}" stroke="#1a1a1a" stroke-width="1" opacity="0.9"/>
+
+                    <!-- Core body (vest) -->
+                    <ellipse cx="15" cy="${height - 30 + bobOffset}" rx="10" ry="9" fill="${colors.vest}" stroke="#0f0f0f" stroke-width="0.8"/>
+
+                    <!-- Hip/waist connection -->
+                    <ellipse cx="15" cy="${height - 20 + bobOffset}" rx="8" ry="5" fill="${colors.pants}" stroke="#4a5a2e" stroke-width="0.5"/>
+
+                    <!-- Left leg with natural taper -->
+                    <path d="M ${8 + legOffset} ${height - 25 + bobOffset}
+                             C ${6 + legOffset} ${height - 20 + bobOffset} ${7 + legOffset} ${height - 10} ${8 + legOffset} ${height - 5}
+                             C ${8 + legOffset} ${height - 3} ${10 + legOffset} ${height - 1} ${12 + legOffset} ${height - 1}
+                             C ${14 + legOffset} ${height - 1} ${15 + legOffset} ${height - 2} ${15 + legOffset} ${height - 4}
+                             L 15 ${height - 15 + bobOffset}
+                             C 13 ${height - 20 + bobOffset} ${10 + legOffset} ${height - 25 + bobOffset} ${8 + legOffset} ${height - 25 + bobOffset}
+                             Z"
+                          fill="${colors.pants}" stroke="#4a5a2e" stroke-width="0.5"/>
+
+                    <!-- Right leg with natural taper -->
+                    <path d="M ${22 - legOffset} ${height - 25 + bobOffset}
+                             C ${24 - legOffset} ${height - 20 + bobOffset} ${23 - legOffset} ${height - 10} ${22 - legOffset} ${height - 5}
+                             C ${22 - legOffset} ${height - 3} ${20 - legOffset} ${height - 1} ${18 - legOffset} ${height - 1}
+                             C ${16 - legOffset} ${height - 1} ${15 - legOffset} ${height - 2} ${15 - legOffset} ${height - 4}
+                             L 15 ${height - 15 + bobOffset}
+                             C 17 ${height - 20 + bobOffset} ${20 - legOffset} ${height - 25 + bobOffset} ${22 - legOffset} ${height - 25 + bobOffset}
+                             Z"
+                          fill="${colors.pants}" stroke="#4a5a2e" stroke-width="0.5"/>
+
+                    <!-- Left arm with shoulder blend -->
+                    <ellipse cx="${7 + armOffset}" cy="${height - 28 + bobOffset}" rx="4" ry="9" fill="${colors.vest}" stroke="#0f0f0f" stroke-width="0.5"/>
+
+                    <!-- Right arm with shoulder blend -->
+                    <ellipse cx="${23 - armOffset}" cy="${height - 28 + bobOffset}" rx="4" ry="9" fill="${colors.vest}" stroke="#0f0f0f" stroke-width="0.5"/>
+
+                    <!-- Left hand -->
+                    <circle cx="${7 + armOffset}" cy="${height - 17 + bobOffset}" r="3" fill="${colors.skin}" stroke="#d4a574" stroke-width="0.5"/>
+
+                    <!-- Right hand -->
+                    <circle cx="${23 - armOffset}" cy="${height - 17 + bobOffset}" r="3" fill="${colors.skin}" stroke="#d4a574" stroke-width="0.5"/>
+
+                    <!-- Head with natural roundness -->
+                    <ellipse cx="15" cy="${height - 40 + bobOffset}" rx="10" ry="10" fill="${colors.hood}" stroke="#1a1a1a" stroke-width="1"/>
+
+                    <!-- Face opening - more goggle-like -->
+                    <ellipse cx="15" cy="${height - 39 + bobOffset}" rx="7" ry="5" fill="${colors.skin}" stroke="#d4a574" stroke-width="0.5"/>
+
+                    <!-- Eyes with more depth -->
+                    <circle cx="12" cy="${height - 39 + bobOffset}" r="2.2" fill="${colors.eyes}" stroke="#000" stroke-width="0.3"/>
+                    <circle cx="18" cy="${height - 39 + bobOffset}" r="2.2" fill="${colors.eyes}" stroke="#000" stroke-width="0.3"/>
+
+                    <!-- Eye highlights for life -->
+                    <circle cx="12.8" cy="${height - 39.8 + bobOffset}" r="0.6" fill="#333"/>
+                    <circle cx="18.8" cy="${height - 39.8 + bobOffset}" r="0.6" fill="#333"/>
+
+                    <!-- Belt with dimension -->
+                    <ellipse cx="15" cy="${height - 22 + bobOffset}" rx="9" ry="2.5" fill="${colors.belt}" stroke="#cc7700" stroke-width="0.5"/>
+
+                    <!-- Belt buckle -->
+                    <rect x="13" y="${height - 23.5 + bobOffset}" width="4" height="3" rx="0.5" fill="#ffaa00" stroke="#cc7700" stroke-width="0.3"/>
+
+                    <!-- Boot soles -->
+                    <ellipse cx="${11 + legOffset}" cy="${height - 1}" rx="4" ry="2" fill="${colors.boots}" stroke="#000" stroke-width="0.5"/>
+                    <ellipse cx="${19 - legOffset}" cy="${height - 1}" rx="4" ry="2" fill="${colors.boots}" stroke="#000" stroke-width="0.5"/>
+                </svg>
+            `;
+        }
+
+        // Convert SVG string to image for canvas drawing
+        function svgToImage(svgString, callback) {
+            const img = new Image();
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+
+            img.onload = function() {
+                URL.revokeObjectURL(url);
+                callback(img);
+            };
+            img.src = url;
+        }
+
+        // Player graphics cache
+        const playerGraphicsCache = {};
+
+        // Get cached or create player graphics
+        function getPlayerGraphics(direction, frame, callback) {
+            const key = `${direction}_${frame}`;
+
+            if (playerGraphicsCache[key]) {
+                callback(playerGraphicsCache[key]);
+                return;
+            }
+
+            const svgString = createPlayerSVG(direction, frame);
+            svgToImage(svgString, (img) => {
+                playerGraphicsCache[key] = img;
+                callback(img);
+            });
+        }
+
+        // Preload all player graphics
+        function preloadPlayerGraphics() {
+            const directions = ['down', 'up', 'left', 'right'];
+            const frames = [0, 1, 2, 3];
+
+            directions.forEach(direction => {
+                frames.forEach(frame => {
+                    getPlayerGraphics(direction, frame, () => {
+                        console.log(`Loaded player graphic: ${direction}_${frame}`);
+                    });
+                });
+            });
+        }
+
         // Level restart function - removes score/XP earned during current level attempt
         function restartLevel() {
             // Roll back score and XP to level start values
@@ -3801,6 +3947,23 @@
         }
         
         function drawPlayerFrame(drawCtx, x, y, frame, variant, direction = 'down') {
+            // Use SVG-based graphics system
+            const animFrame = frame % 4; // 4-frame animation cycle
+
+            // Temporarily 400% bigger for detailed design/debugging
+            const width = 180;  // was 30, now 400% bigger (90 * 2)
+            const height = 240; // was 40, now 400% bigger (120 * 2)
+
+            getPlayerGraphics(direction, animFrame, (img) => {
+                if (img) {
+                    // Draw the SVG image centered on the player position
+                    drawCtx.drawImage(img, x - width/2, y - height/2, width, height);
+                }
+            });
+
+            return; // Skip the old drawing code below
+
+            // OLD DRAWING CODE (keeping for reference but not executing)
             const size = 2.5; // Slightly larger for better detail
 
             // Get colors from the selected variant
@@ -6592,6 +6755,9 @@
             updateScoreDisplay();
             updateXPDisplay();
             updateHighScoreDisplay();
+
+            // Preload player graphics
+            preloadPlayerGraphics();
 
             isInMenu = true;
             updateMenuSelection();
