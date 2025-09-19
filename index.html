@@ -554,7 +554,7 @@
 
         // Update high score display
         function updateHighScoreDisplay() {
-            highScoreDisplay.textContent = `Best Score: ${highScore}`;
+            highScoreDisplay.textContent = `Best Complete Score: ${gameCompleteHighScore}`;
         }
 
         // Check and update high score
@@ -1301,7 +1301,7 @@
             gameUI.style.display = 'flex';
 
             // Update menu displays
-            startHighScoreSpan.textContent = `Best Score: ${highScore}`;
+            startHighScoreSpan.textContent = `Best Complete Score: ${gameCompleteHighScore}`;
             updateScoreDisplay();
             updateXPDisplay();
             updateHighScoreDisplay();
@@ -6583,7 +6583,8 @@
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
             // Load and display high score
-            startHighScoreSpan.textContent = `Best Score: ${highScore}`;
+            console.log('Loading high score on start screen:', gameCompleteHighScore, 'from localStorage:', localStorage.getItem('zombieGameCompleteHighScore'));
+            startHighScoreSpan.textContent = `Best Complete Score: ${gameCompleteHighScore}`;
 
             // Initialize scoring system
             loadProgress();
