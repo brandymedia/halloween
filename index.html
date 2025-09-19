@@ -813,6 +813,90 @@
                         }
                     ]
                 }
+            },
+
+            // Test Level 2 - Multiple buildings with different door configurations
+            2: {
+                name: "Village Square Outbreak",
+                objective: "Clear the infected village buildings",
+                worldSize: 1024, // Larger world for multiple buildings
+                spawnPosition: () => {
+                    return { x: 0, y: 400 }; // South of village
+                },
+                availableWeapons: ['pistol', 'shotgun'], // Add shotgun for level 2
+                weaponSlotMapping: { 'pistol': 1, 'shotgun': 2 },
+                features: {
+                    chestsEnabled: true, // Enable loot chests in level 2
+                    randomEnemySpawning: false,
+                    powerUpsEnabled: true
+                },
+                completion: {
+                    type: 'killAllEnemies',
+                    description: 'Clear all infected buildings',
+                    checkComplete: () => {
+                        return zombies.length === 0;
+                    }
+                },
+                structures: {
+                    buildings: [
+                        // Large house with multiple doors
+                        createBuilding('house',
+                            { left: -2, right: 2, top: -2, bottom: 2 }, // 4x4 building
+                            [
+                                { wall: 'south', x: 0, width: 64 },   // Front door
+                                { wall: 'north', x: 1, width: 64 },   // Back door
+                                { wall: 'east', y: 0, width: 64 }     // Side door
+                            ]
+                        ),
+
+                        // Small shed
+                        createBuilding('shed',
+                            { left: -4.5, right: -3.5, top: -1, bottom: 0 }, // 1x1 building
+                            [{ wall: 'west', y: 0, width: 48 }] // Smaller door
+                        ),
+
+                        // L-shaped barn (two connected rectangles)
+                        createBuilding('barn-main',
+                            { left: 3, right: 6, top: -1, bottom: 2 }, // 3x3 horizontal part
+                            [{ wall: 'west', y: 0, width: 64 }] // Door on west side for easier access
+                        ),
+                        createBuilding('barn-wing',
+                            { left: 5, right: 7, top: -3, bottom: -1 }, // 2x2 vertical part
+                            [{ wall: 'east', y: -2, width: 64 }] // Door on east side for access
+                        )
+                    ],
+                    trees: [
+                        { gridX: -6, gridY: -3, type: 'oak', size: 'large' },
+                        { gridX: 8, gridY: -2, type: 'pine', size: 'medium' },
+                        { gridX: -1, gridY: 5, type: 'oak', size: 'small' },
+                        { gridX: 4, gridY: 4, type: 'pine', size: 'large' }
+                    ],
+                    rocks: [
+                        { gridX: -5, gridY: 3, type: 'granite', size: 'large' },
+                        { gridX: 7, gridY: -4, type: 'boulder', size: 'medium' },
+                        { gridX: 0, gridY: -5, type: 'granite', size: 'small' }
+                    ],
+                    enemies: [
+                        {
+                            type: 'zombie',
+                            gridX: 0, gridY: 0, // In the house
+                            confined: true,
+                            bounds: { minX: -1.8, maxX: 1.8, minY: -1.8, maxY: 1.8 }
+                        },
+                        {
+                            type: 'zombie',
+                            gridX: -4, gridY: -0.5, // In the shed
+                            confined: true,
+                            bounds: { minX: -4.3, maxX: -3.7, minY: -0.8, maxY: -0.2 }
+                        },
+                        {
+                            type: 'zombie',
+                            gridX: 4.5, gridY: 0.5, // In the barn
+                            confined: true,
+                            bounds: { minX: 3.2, maxX: 5.8, minY: -0.8, maxY: 1.8 }
+                        }
+                    ]
+                }
             }
             // Future levels will be added here
         };
@@ -873,9 +957,16 @@
 
             // Event listeners for buttons
             document.getElementById('next-level-btn').addEventListener('click', () => {
-                // TODO: Load next level when available
-                document.body.removeChild(completionScreen);
-                alert('Next level not yet implemented!');
+                const nextLevel = gameLevel.current + 1;
+                if (levelConfigs[nextLevel]) {
+                    // Load next level
+                    document.body.removeChild(completionScreen);
+                    gameLevel.current = nextLevel;
+                    resetGame(); // This will load the new level
+                } else {
+                    document.body.removeChild(completionScreen);
+                    alert('Next level not yet implemented!');
+                }
             });
 
             document.getElementById('restart-level-btn').addEventListener('click', () => {
@@ -2653,6 +2744,11 @@
                         small: { trunkWidth: 8, trunkHeight: 24, canopySize: 32 },
                         medium: { trunkWidth: 12, trunkHeight: 36, canopySize: 48 },
                         large: { trunkWidth: 16, trunkHeight: 48, canopySize: 64 }
+                    },
+                    pine: {
+                        small: { trunkWidth: 6, trunkHeight: 32, canopySize: 24 },
+                        medium: { trunkWidth: 8, trunkHeight: 44, canopySize: 32 },
+                        large: { trunkWidth: 10, trunkHeight: 56, canopySize: 40 }
                     }
                 };
 
@@ -5938,15 +6034,14 @@
 
             updatePlayerPosition();
 
-            // Level-based enemy spawning
-            if (gameLevel.current === 1) {
-                // Level 1: Only the cabin zombie, no random spawning
-                // Cabin zombie is created once in resetGame()
-            } else {
-                // Future levels: normal spawning
+            // Level-based enemy spawning - check level configuration
+            const levelConfig = levelConfigs[gameLevel.current];
+            if (levelConfig && levelConfig.features && levelConfig.features.randomEnemySpawning) {
+                // Only spawn random enemies if enabled in level config
                 spawnZombie();
                 spawnSkeleton();
             }
+            // Fixed enemies from level config are spawned once in generateLevelStructures()
             updateZombies();
             updateSkeletons();
             updatePlayerBullets();
