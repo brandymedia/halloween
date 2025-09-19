@@ -345,8 +345,8 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="score-display">Session XP: 0</div>
-        <div id="highScoreDisplay">Best Session: 0 XP</div>
+        <div id="score-display">Score: 0</div>
+        <div id="highScoreDisplay">Best Score: 0</div>
         <div id="xp-display">XP: 0</div>
         <div id="weapon-display">Weapon: Pistol</div>
         <div id="ammo-display">Ammo: Inf</div>
@@ -379,8 +379,8 @@
             </div>
             <div id="game-over-screen">
                 <h1>Game Over</h1>
-                <p>Session XP: <span id="finalScore">0</span></p>
-                <p>Best Session: <span id="highScore">0</span></p>
+                <p>Run Score: <span id="finalScore">0</span></p>
+                <p>Best Score: <span id="highScore">0</span></p>
                 <button id="restartButton" class="btn">Play Again</button>
             </div>
         </div>
@@ -505,11 +505,10 @@
         const ctx3 = char3Canvas.getContext('2d');
 
         let isGameOver = true;
-        let highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
-
-        // XP System for Meta Progression
-        let totalXP = 0;
-        let sessionXP = 0;
+        // Hybrid Scoring System
+        let currentScore = 0;      // Current run score (resets on death)
+        let highScore = parseInt(localStorage.getItem('zombieGameHighScore')) || 0;
+        let totalXP = 0;           // Permanent XP for future awards/unlocks
 
         // Load saved XP from localStorage
         function loadProgress() {
@@ -528,18 +527,18 @@
             localStorage.setItem('zombieGameProgress', JSON.stringify(progress));
         }
 
-        // Award XP for killing enemies
-        function awardXP(amount) {
-            totalXP += amount;
-            sessionXP += amount;
+        // Award points for killing enemies
+        function awardScore(amount) {
+            currentScore += amount;    // Add to current run
+            totalXP += amount;         // Add to permanent XP bank
             saveProgress();
+            updateScoreDisplay();
             updateXPDisplay();
-            updateSessionXPDisplay();
         }
 
-        // Update session XP display
-        function updateSessionXPDisplay() {
-            scoreDisplay.textContent = `Session XP: ${sessionXP}`;
+        // Update current score display
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${currentScore}`;
         }
 
         // Update XP display
@@ -547,15 +546,20 @@
             xpDisplay.textContent = `XP: ${totalXP}`;
         }
 
-        // Check and update high session XP
-        function checkHighSessionXP() {
-            if (sessionXP > highSessionXP) {
-                highSessionXP = sessionXP;
-                localStorage.setItem('zombieGameHighSessionXP', highSessionXP.toString());
-                highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
+        // Update high score display
+        function updateHighScoreDisplay() {
+            highScoreDisplay.textContent = `Best Score: ${highScore}`;
+        }
+
+        // Check and update high score
+        function checkHighScore() {
+            if (currentScore > highScore) {
+                highScore = currentScore;
+                localStorage.setItem('zombieGameHighScore', highScore.toString());
+                updateHighScoreDisplay();
                 return true; // New record
             }
-            return false;
+            return false; // No new record
         }
         let playerHealth = 3;
         const maxHealth = 3;
@@ -919,9 +923,14 @@
             if (gameLevel.isComplete) return; // Already completed
 
             const config = levelConfigs[gameLevel.current];
-            if (!config || !config.completion) return;
+            if (!config || !config.completion) {
+                console.log('No level config or completion criteria found for level:', gameLevel.current);
+                return;
+            }
 
-            if (config.completion.checkComplete()) {
+            const isComplete = config.completion.checkComplete();
+            if (isComplete) {
+                console.log('Level completion criteria met!');
                 gameLevel.isComplete = true;
                 gameLevel.completionTime = Date.now();
                 showLevelCompleteScreen();
@@ -929,6 +938,7 @@
         }
 
         function showLevelCompleteScreen() {
+            console.log('Level Complete Screen triggered!');
             // Pause the game
             isGameOver = true;
 
@@ -963,14 +973,134 @@
 
             document.body.appendChild(completionScreen);
 
-            // Event listeners for buttons
+            // Gamepad navigation state
+            let selectedButton = 0; // 0 = next level, 1 = restart level
+            const buttons = ['next-level-btn', 'restart-level-btn'];
+
+            function updateButtonSelection() {
+                buttons.forEach((btnId, index) => {
+                    const btn = document.getElementById(btnId);
+                    if (index === selectedButton) {
+                        btn.style.backgroundColor = '#4CAF50';
+                        btn.style.transform = 'scale(1.1)';
+                        btn.style.boxShadow = '0 0 10px #4CAF50';
+                    } else {
+                        btn.style.backgroundColor = '#333';
+                        btn.style.transform = 'scale(1)';
+                        btn.style.boxShadow = 'none';
+                    }
+                });
+            }
+
+            function executeSelectedButton() {
+                if (selectedButton === 0) {
+                    // Next Level
+                    const nextLevel = gameLevel.current + 1;
+                    if (levelConfigs[nextLevel]) {
+                        document.body.removeChild(completionScreen);
+                        gameLevel.current = nextLevel;
+                        resetGame();
+                    } else {
+                        document.body.removeChild(completionScreen);
+                        alert('Next level not yet implemented!');
+                    }
+                } else {
+                    // Restart Level
+                    document.body.removeChild(completionScreen);
+                    resetGame();
+                }
+            }
+
+            // Initialize button selection
+            updateButtonSelection();
+
+            // Gamepad input handler using setInterval instead of requestAnimationFrame
+            let inputInterval;
+
+            function handleLevelCompleteInput() {
+                if (!document.getElementById('level-complete-screen')) {
+                    if (inputInterval) {
+                        clearInterval(inputInterval);
+                        inputInterval = null;
+                    }
+                    return;
+                }
+
+                // Update gamepad reference
+                if (gamepadIndex >= 0) {
+                    gamepad = navigator.getGamepads()[gamepadIndex];
+                }
+
+                // Debug: Check if gamepad is available
+                if (gamepad) {
+                    // Check raw button states for debugging
+                    const upPressed = gamepad.buttons[12]?.pressed;
+                    const downPressed = gamepad.buttons[13]?.pressed;
+                    const aPressed = gamepad.buttons[0]?.pressed;
+
+                    if (upPressed || downPressed || aPressed) {
+                        console.log('Level Complete - Raw buttons:', { up: upPressed, down: downPressed, a: aPressed });
+                    }
+                }
+
+                // Track stick input for edge detection
+                if (!handleLevelCompleteInput.lastStickY) {
+                    handleLevelCompleteInput.lastStickY = 0;
+                }
+
+                // Navigate up/down with D-Pad
+                if (getButtonPressed(12)) { // D-Pad Up
+                    console.log('D-Pad Up pressed - moving selection up');
+                    selectedButton = Math.max(0, selectedButton - 1);
+                    updateButtonSelection();
+                }
+                if (getButtonPressed(13)) { // D-Pad Down
+                    console.log('D-Pad Down pressed - moving selection down');
+                    selectedButton = Math.min(buttons.length - 1, selectedButton + 1);
+                    updateButtonSelection();
+                }
+
+                // Navigate up/down with Left Stick
+                if (gamepad) {
+                    const leftStickY = applyDeadzone(gamepad.axes[1]); // Left stick Y-axis
+                    const wasMovingUp = handleLevelCompleteInput.lastStickY < -0.5;
+                    const wasMovingDown = handleLevelCompleteInput.lastStickY > 0.5;
+                    const isMovingUp = leftStickY < -0.5;
+                    const isMovingDown = leftStickY > 0.5;
+
+                    // Edge detection for stick movement
+                    if (isMovingUp && !wasMovingUp) {
+                        console.log('Left stick up - moving selection up');
+                        selectedButton = Math.max(0, selectedButton - 1);
+                        updateButtonSelection();
+                    }
+                    if (isMovingDown && !wasMovingDown) {
+                        console.log('Left stick down - moving selection down');
+                        selectedButton = Math.min(buttons.length - 1, selectedButton + 1);
+                        updateButtonSelection();
+                    }
+
+                    handleLevelCompleteInput.lastStickY = leftStickY;
+                }
+
+                // Confirm selection
+                if (getButtonPressed(0)) { // A button
+                    console.log('A button pressed - executing selection');
+                    executeSelectedButton();
+                }
+            }
+
+            // Start gamepad input handling with setInterval
+            console.log('Level Complete Screen - Gamepad status:', gamepad ? 'Connected' : 'Not connected');
+            inputInterval = setInterval(handleLevelCompleteInput, 16); // ~60fps
+
+            // Event listeners for mouse clicks
             document.getElementById('next-level-btn').addEventListener('click', () => {
                 const nextLevel = gameLevel.current + 1;
                 if (levelConfigs[nextLevel]) {
-                    // Load next level
                     document.body.removeChild(completionScreen);
                     gameLevel.current = nextLevel;
-                    resetGame(); // This will load the new level
+                    resetGame();
                 } else {
                     document.body.removeChild(completionScreen);
                     alert('Next level not yet implemented!');
@@ -987,7 +1117,8 @@
         function resetGame() {
             isGameOver = false;
             isInMenu = false;
-            sessionXP = 0; // Reset session XP for new game
+            // Note: currentScore is NOT reset here - it continues across levels
+            // Only reset on actual death/game over
             playerHealth = maxHealth;
             invincibilityFrames = 0;
             // Reset all power-ups
@@ -1018,8 +1149,8 @@
             player.x = spawnPos.x;
             player.y = spawnPos.y;
             initializeCamera(); // Reset camera on game restart
-            updateSessionXPDisplay();
-            highScoreDisplay.textContent = `Best Session: ${highSessionXP} XP`;
+            updateScoreDisplay();
+            // No need for high score display during game
             gameUI.style.display = 'none';
             gameOverScreen.style.display = 'none';
             startMenu.style.display = 'none';
@@ -4225,6 +4356,11 @@
                 return { dx: 0, dy: 0, aiming: false };
             }
 
+            // Don't process gamepad input if level complete screen is showing
+            if (document.getElementById('level-complete-screen')) {
+                return { dx: 0, dy: 0, aiming: false };
+            }
+
             // Update gamepad state
             gamepad = navigator.getGamepads()[gamepadIndex];
             if (!gamepad) {
@@ -5220,9 +5356,9 @@
                 });
 
                 // Award XP for nuke kills
-                awardXP(zombies.length * 1); // 1 XP per zombie
+                awardScore(zombies.length * 10); // 10 points per zombie
                 zombies = [];
-                awardXP(skeletons.length * 2); // 2 XP per skeleton
+                awardScore(skeletons.length * 20); // 20 points per skeleton
                 skeletons = [];
 
                 // Destroy all chests in nuke blast
@@ -5492,7 +5628,7 @@
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('zombieDeath');
-                            awardXP(3); // Zombie headshot XP
+                            awardScore(30); // Zombie headshot bonus
                         }, 0);
                         return; // Prevent body shot from also triggering
                     } else if (distance < bullet.radius + 12) {
@@ -5503,7 +5639,7 @@
                             playerBullets.splice(bIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('zombieDeath');
-                            awardXP(1); // Regular zombie XP
+                            awardScore(10); // Regular zombie points
                         }, 0);
                     }
                 });
@@ -5523,7 +5659,7 @@
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('skeletonDeath');
-                            awardXP(5); // Skeleton headshot XP
+                            awardScore(50); // Skeleton headshot bonus
                         }, 0);
                         return; // Prevent body shot from also triggering
                     } else if (distance < bullet.radius + skeleton.size) {
@@ -5534,7 +5670,7 @@
                             playerBullets.splice(bIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('skeletonDeath');
-                            awardXP(2); // Regular skeleton XP
+                            awardScore(20); // Regular skeleton points
                         }, 0);
                     }
                 });
@@ -5608,7 +5744,7 @@
                             createDamageNumber(zombie.x, zombie.y - 10, '+2 XP', false, 'zombie');
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('zombieDeath');
-                            awardXP(2); // Explosion kill XP
+                            awardScore(20); // Explosion kill bonus
                         }, 0);
                     }
                 });
@@ -5725,7 +5861,7 @@
                             fragments.splice(fIndex, 1);
                             zombies.splice(zIndex, 1);
                             audioManager.playSound('zombieDeath');
-                            awardXP(2); // Explosion kill XP
+                            awardScore(20); // Explosion kill bonus
                         }, 0);
                     }
                 });
@@ -5741,7 +5877,7 @@
                             fragments.splice(fIndex, 1);
                             skeletons.splice(sIndex, 1);
                             audioManager.playSound('skeletonDeath');
-                            awardXP(2); // Explosion kill XP
+                            awardScore(20); // Explosion kill bonus
                         }, 0);
                     }
                 });
@@ -5752,11 +5888,14 @@
             isGameOver = true;
             cancelAnimationFrame(animationId);
             audioManager.stopBackgroundMusic();
-            finalScoreSpan.textContent = `${sessionXP} XP`;
+            finalScoreSpan.textContent = `${currentScore}`;
 
-            // Check for and update high session XP
-            const newRecord = checkHighSessionXP();
-            highScoreSpan.textContent = `${highSessionXP} XP`;
+            // Check for and update high score
+            const newRecord = checkHighScore();
+            highScoreSpan.textContent = `${highScore}`;
+
+            // Reset current score on death
+            currentScore = 0;
 
             gameUI.style.display = 'flex';
             gameOverScreen.style.display = 'flex';
@@ -5887,14 +6026,14 @@
         }
 
         function getLootDropProbabilities() {
-            // Dynamic loot probabilities based on session XP
-            if (sessionXP < 50) {
+            // Dynamic loot probabilities based on current score
+            if (currentScore < 200) {
                 // Early game: mostly ammo and health
                 return {
                     [lootTypes.AMMO]: 60,
                     [lootTypes.HEALTH]: 40
                 };
-            } else if (sessionXP < 150) {
+            } else if (currentScore < 600) {
                 // Mid game: add power-ups
                 return {
                     [lootTypes.AMMO]: 40,
@@ -5961,7 +6100,7 @@
                         audioManager.playSound('chestPickup');
                     } else {
                         // Full health, give score bonus instead
-                        awardXP(5);
+                        awardScore(50);
                         createDamageNumber(player.x, player.y - 30, '+5 XP', false, 'loot');
                         audioManager.playSound('chestPickup');
                     }
@@ -5970,7 +6109,7 @@
                 case lootTypes.SCORE_BONUS:
                     const bonus = Math.random() > 0.5 ? 100 : 50;
                     const xpBonus = Math.floor(bonus / 10);
-                    awardXP(xpBonus);
+                    awardScore(bonus);
                     createDamageNumber(player.x, player.y - 30, `+${xpBonus} XP`, false, 'loot');
                     audioManager.playSound('chestPickup');
                     break;
@@ -6206,12 +6345,15 @@
             initializeCamera();
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
-            highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
-            startHighScoreSpan.textContent = `Best Session: ${highSessionXP} XP`;
+            // Load and display high score
+            startHighScoreSpan.textContent = `Best Score: ${highScore}`;
 
-            // Initialize XP system
+            // Initialize scoring system
             loadProgress();
+            currentScore = 0; // Reset score for new game
+            updateScoreDisplay();
             updateXPDisplay();
+            updateHighScoreDisplay();
 
             isInMenu = true;
             updateMenuSelection();
@@ -6473,8 +6615,8 @@
             await audioManager.init();
             audioManager.playSound('buttonClick');
             audioManager.stopBackgroundMusic();
-            highSessionXP = parseInt(localStorage.getItem('zombieGameHighSessionXP')) || 0;
-            startHighScoreSpan.textContent = `Best Session: ${highSessionXP} XP`;
+            // Load and display high score
+            startHighScoreSpan.textContent = `Best Score: ${highScore}`;
             gameUI.style.display = 'flex';
             startMenu.style.display = 'flex';
             gameOverScreen.style.display = 'none';
